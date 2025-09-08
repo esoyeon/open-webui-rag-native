@@ -4,44 +4,80 @@ LangGraph에서 사용되는 각종 노드 함수들
 """
 
 import logging
+import os
 from typing import List, Optional
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
+from langchain_community.tools.tavily_search import TavilySearchResults
 
 logger = logging.getLogger(__name__)
 
 
 class WebSearchTool:
-    """웹 검색 도구 (Tavily 대신 간단한 구현)"""
+    """Tavily 기반 실제 웹 검색 도구"""
 
     def __init__(self):
-        # 실제로는 Tavily나 다른 웹 검색 API를 사용해야 합니다
-        logger.warning(
-            "WebSearchTool: Using mock implementation. Please integrate real web search API."
-        )
+        """Tavily API를 사용한 웹 검색 초기화"""
+        try:
+            self.tavily_tool = TavilySearchResults(
+                max_results=3,
+                search_depth="advanced",
+                include_answer=True,
+                include_raw_content=True,
+                include_images=False,
+                # API 키는 환경변수 TAVILY_API_KEY에서 자동으로 로드
+            )
+            logger.info("✅ Tavily 웹 검색 도구가 성공적으로 초기화되었습니다.")
+        except Exception as e:
+            logger.error(f"❌ Tavily 초기화 실패: {e}")
+            # Fallback to mock for development
+            self.tavily_tool = None
+            logger.warning("Mock 웹 검색으로 대체됩니다.")
 
     def search(self, query: str, max_results: int = 3) -> List[dict]:
-        """웹 검색 수행 (Mock 구현)"""
-        # 실제 구현에서는 Tavily나 다른 검색 API를 호출
-        logger.info(f"Web search query: {query}")
+        """실제 웹 검색 수행"""
+        logger.info(f"🔍 Tavily 웹 검색 쿼리: {query}")
 
-        # Mock 결과 반환
-        mock_results = [
-            {
-                "content": f"Mock web search result 1 for query: {query}. This would contain actual web content in real implementation.",
-                "url": "https://example.com/result1",
-                "title": f"Search Result 1 for {query}",
-            },
-            {
-                "content": f"Mock web search result 2 for query: {query}. Real implementation would fetch current web content.",
-                "url": "https://example.com/result2",
-                "title": f"Search Result 2 for {query}",
-            },
-        ]
+        if self.tavily_tool is None:
+            # Fallback mock results if Tavily is not available
+            logger.warning("⚠️ Tavily 사용 불가, Mock 결과 반환")
+            return [
+                {
+                    "content": f"Fallback search result for: {query}",
+                    "url": "https://example.com/fallback",
+                    "title": f"Fallback Result for {query}",
+                }
+            ]
 
-        return mock_results[:max_results]
+        try:
+            # Tavily 검색 수행
+            results = self.tavily_tool.invoke({"query": query})
+
+            # 결과 포맷팅
+            formatted_results = []
+            for result in results[:max_results]:
+                formatted_result = {
+                    "content": result.get("content", ""),
+                    "url": result.get("url", ""),
+                    "title": result.get("title", ""),
+                }
+                formatted_results.append(formatted_result)
+
+            logger.info(f"✅ Tavily에서 {len(formatted_results)}개 결과 반환")
+            return formatted_results
+
+        except Exception as e:
+            logger.error(f"❌ Tavily 검색 실패: {e}")
+            # Return fallback result on error
+            return [
+                {
+                    "content": f"검색 오류 발생. 질문: {query}에 대한 답변을 찾을 수 없습니다.",
+                    "url": "https://error.com",
+                    "title": f"검색 오류: {query}",
+                }
+            ]
 
 
 class RAGNodes:
@@ -58,17 +94,38 @@ class RAGNodes:
         self.web_search_tool = WebSearchTool()
 
         # RAG 프롬프트 설정
-        rag_template = """당신은 질문-답변 업무를 수행하는 어시스턴트입니다. 
-다음의 검색된 문맥 정보를 사용하여 질문에 답변해주세요. 
-답을 모르는 경우, 모른다고 솔직하게 말해주세요. 
-최대 3문장으로 간결하고 정확하게 답변해주세요.
+        rag_template = """당신은 전문적인 AI 연구 분석가입니다. 
+검색된 문서 정보를 바탕으로 상세하고 구조화된 답변을 제공해주세요.
+
+**답변 가이드라인:**
+📋 **구조화된 답변**: 주제별로 명확히 구분하여 설명
+🔍 **상세한 분석**: 핵심 내용, 배경, 영향, 의미 등을 포함
+📊 **비교 분석**: 여러 국가/기업/정책이 언급된 경우 비교표나 차이점 명시
+💡 **실용적 정보**: 구체적인 수치, 날짜, 정책명, 기관명 등 포함
+🎯 **결론 및 시사점**: 핵심 요약과 향후 전망 제시
+
+**답변 형식 예시:**
+## 📋 핵심 내용
+[주요 내용 설명]
+
+## 🔍 상세 분석  
+[구체적 분석 내용]
+
+## 📊 비교/특징
+[비교 분석 또는 주요 특징]
+
+## 💡 시사점
+[의미와 전망]
+
 **사용자 질문이 한국어면 반드시 한국어로, 영어면 영어로 답변해주세요.**
 
-Context: {context}
+---
+**검색된 문서 정보:**
+{context}
 
-Question: {question}
+**질문:** {question}
 
-Answer (질문 언어와 동일한 언어로 답변):"""
+**전문적이고 상세한 답변:**"""
 
         self.rag_prompt = ChatPromptTemplate.from_template(rag_template)
         self.rag_chain = self.rag_prompt | self.llm | StrOutputParser()
@@ -84,7 +141,7 @@ Answer (질문 언어와 동일한 언어로 답변):"""
 
         try:
             # 문서 검색 수행
-            documents = self.vector_store.similarity_search(question, k=5)
+            documents = self.vector_store.similarity_search(question, k=10)
             logger.info(f"Retrieved {len(documents)} documents")
             return {"documents": documents}
         except Exception as e:

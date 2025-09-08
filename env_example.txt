@@ -1,23 +1,36 @@
-# OpenAI API Configuration
-OPENAI_API_KEY=your_openai_api_key_here
+# 🔑 환경변수 설정 예시
+# .env 파일을 생성하고 아래 내용을 복사하여 실제 값으로 수정하세요
 
-# Tavily API (웹 검색용)
-TAVILY_API_KEY=your_tavily_api_key_here
+# === 필수 설정 ===
+# OpenAI API 키 (필수) - 임베딩과 텍스트 생성에 사용
+OPENAI_API_KEY=sk-your-actual-openai-api-key-here
 
-# LangSmith (선택적 - 추적용)
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
-LANGCHAIN_API_KEY=your_langsmith_api_key_here
-LANGCHAIN_PROJECT=llm-chatbot-adaptive-rag
+# === 선택적 설정 ===
+# LangSmith 추적 (선택사항) - RAG 워크플로우 모니터링
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=lsv2_pt_your-langsmith-api-key
+LANGSMITH_PROJECT=LLM_Chatbot
 
-# Open WebUI Configuration
-WEBUI_SECRET_KEY=your-secret-key-here
-WEBUI_JWT_SECRET_KEY=your-jwt-secret-key-here
+# Tavily 웹 검색 (선택사항) - 실시간 정보 검색
+TAVILY_API_KEY=tvly-your-tavily-api-key
 
-# Database (SQLite 기본값)
-DATABASE_URL=sqlite:///./open_webui.db
+# === 사용 방법 ===
+# 1. 이 파일을 .env 로 복사
+#    cp env_example.txt .env
+#
+# 2. .env 파일에서 실제 API 키 입력  
+#    OPENAI_API_KEY=sk-proj-your-real-key...
+#
+# 3. 서버 실행
+#    python web_api_server.py
 
-# 기타 설정
-ENABLE_SIGNUP=true
-DEFAULT_USER_ROLE=user
-LOG_LEVEL=INFO
+# === API 키 획득 방법 ===
+# OpenAI: https://platform.openai.com/account/api-keys
+# LangSmith: https://smith.langchain.com/
+# Tavily: https://tavily.com/
+
+# === 주의사항 ===
+# - .env 파일은 .gitignore에 포함되어 있어 Git에 업로드되지 않습니다
+# - API 키는 절대 공개 저장소에 업로드하지 마세요
+# - 무료 OpenAI 크레딧이 있는지 확인하세요

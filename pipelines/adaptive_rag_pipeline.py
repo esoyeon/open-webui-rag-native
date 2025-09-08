@@ -1,6 +1,23 @@
 """
-Adaptive RAG Pipeline for Open WebUI
-Open WebUI에서 사용할 수 있는 Adaptive RAG 파이프라인
+🔗 Open WebUI 통합 Adaptive RAG 파이프라인
+
+Open WebUI의 Pipe 인터페이스를 구현하여 LangGraph 기반 Adaptive RAG를 통합합니다.
+
+핵심 기능:
+- LangGraph 워크플로우: Query Router → Document Retriever → Grader → Generator
+- FAISS 벡터 스토어: 46개 문서 임베딩 검색
+- 한국어 완벽 지원: 모든 프롬프트와 응답 한국어 최적화
+- 자가 수정: 품질이 낮은 답변 자동 재생성
+- 환상 방지: 문서 기반 사실 검증
+
+Open WebUI Pipe 메서드:
+- pipe(): 메인 질문-답변 처리
+- add_documents(): 새로운 PDF 문서 추가
+- get_status(): 파이프라인 상태 정보
+
+사용 방식:
+1. OpenAI 호환 API 서버로 실행 (web_api_server.py)
+2. Pipelines Plugin Framework로 실행 (pipelines_server.py)
 """
 
 import os

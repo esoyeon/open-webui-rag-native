@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 """
-Open WebUI와 Adaptive RAG 파이프라인 통합 실행 스크립트
+🚀 원클릭 실행 스크립트 - Open WebUI + Adaptive RAG 완전 자동화
+
+이 스크립트는 다음을 자동으로 실행합니다:
+1. 환경 검사 (Python, Docker, API 키)
+2. 기존 컨테이너 정리
+3. Adaptive RAG API 서버 시작 (포트 8000)
+4. Open WebUI Docker 컨테이너 실행 (포트 3000)
+5. 자동 연결 설정 (OpenAI 호환 API)
+
+실행 모드:
+- --mode api: OpenAI 호환 API 서버로 연결 (권장)
+- --mode pipelines: Pipelines Plugin Framework로 연결
+
+사용법:
+    python scripts/start_webui_integration.py --mode api
+
+완료 후 브라우저에서 http://localhost:3000 접속
 """
 import os
 import sys

@@ -1,6 +1,24 @@
 #!/usr/bin/env python3
 """
-Adaptive RAG Pipeline을 FastAPI 서버로 실행
+🤖 한국어 지원 Adaptive RAG API 서버
+
+OpenAI 호환 API 형식으로 LangGraph 기반 Adaptive RAG 시스템을 제공합니다.
+- FAISS 벡터 스토어를 통한 문서 검색
+- 한국어 최적화된 프롬프트 시스템  
+- 자가 수정 및 품질 검증 워크플로우
+- Open WebUI 및 모든 OpenAI 호환 클라이언트 지원
+
+주요 엔드포인트:
+- GET /v1/models: 사용 가능한 모델 목록 (adaptive-rag)
+- POST /v1/chat/completions: OpenAI 호환 채팅 완료
+- GET /: 서버 상태 및 파이프라인 정보
+- POST /api/documents: 새로운 문서 추가
+
+사용 예시:
+    python web_api_server.py
+    curl -X POST "http://localhost:8000/v1/chat/completions" \\
+         -H "Content-Type: application/json" \\
+         -d '{"model": "adaptive-rag", "messages": [{"role": "user", "content": "안녕하세요!"}]}'
 """
 import os
 import sys

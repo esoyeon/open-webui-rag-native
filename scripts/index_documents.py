@@ -117,8 +117,8 @@ def main():
 
             try:
                 # PDF 문서 로드
-                pdf_chain = PDFRetrievalChain([str(pdf_file)])
-                documents = pdf_chain.load_documents()
+                pdf_chain = PDFRetrievalChain(str(pdf_file))
+                documents = pdf_chain.load_documents([str(pdf_file)])
 
                 logger.info(f"Loaded {len(documents)} chunks from {pdf_file.name}")
                 all_documents.extend(documents)
