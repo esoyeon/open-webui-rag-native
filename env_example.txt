@@ -1,0 +1,23 @@
+# OpenAI API Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Tavily API (웹 검색용)
+TAVILY_API_KEY=your_tavily_api_key_here
+
+# LangSmith (선택적 - 추적용)
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_API_KEY=your_langsmith_api_key_here
+LANGCHAIN_PROJECT=llm-chatbot-adaptive-rag
+
+# Open WebUI Configuration
+WEBUI_SECRET_KEY=your-secret-key-here
+WEBUI_JWT_SECRET_KEY=your-jwt-secret-key-here
+
+# Database (SQLite 기본값)
+DATABASE_URL=sqlite:///./open_webui.db
+
+# 기타 설정
+ENABLE_SIGNUP=true
+DEFAULT_USER_ROLE=user
+LOG_LEVEL=INFO
