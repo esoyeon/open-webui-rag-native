@@ -100,7 +100,7 @@ cat .env | grep OPENAI_API_KEY
 ```
 
 ### **💡 더 많은 해결책**
-상세한 문제 해결은 **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** 참조
+상세한 문제 해결은 **[문제 해결 가이드](./docs/TROUBLESHOOTING.md)** 참조
 
 ---
 
@@ -136,7 +136,7 @@ python scripts/index_documents.py --docs-dir data --force-rebuild
 python scripts/start_webui_integration.py --mode api
 ```
 
-**상세 가이드**: **[PDF_UPDATE_GUIDE.md](./PDF_UPDATE_GUIDE.md)**
+**상세 가이드**: **[PDF 업데이트 가이드](./docs/PDF_UPDATE_GUIDE.md)**
 
 ---
 
@@ -153,8 +153,8 @@ python scripts/start_webui_integration.py --mode api
 
 ## 🚀 **다음 단계**
 
-- **📋 [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)**: 다른 시스템과 통합 방법
-- **🏗️ [METHODOLOGY.md](./METHODOLOGY.md)**: 다른 프로젝트에 적용하는 방법론
-- **🛠️ [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)**: 상세한 문제 해결 가이드
+- **📋 [통합 가이드](./docs/INTEGRATION_GUIDE.md)**: 다른 시스템과 통합 방법
+- **🏗️ [방법론 문서](./docs/METHODOLOGY.md)**: 다른 프로젝트에 적용하는 방법론
+- **🛠️ [문제 해결](./docs/TROUBLESHOOTING.md)**: 상세한 문제 해결 가이드
 
 **🎯 5분만 투자하면 완전한 AI 어시스턴트를 경험할 수 있습니다!**

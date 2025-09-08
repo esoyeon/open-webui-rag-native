@@ -37,7 +37,7 @@ if project_root not in sys.path:
 
 from adaptive_rag import AdaptiveRAGGraph, FAISSVectorStore
 from langchain_openai import OpenAIEmbeddings
-from rag.pdf import PDFRetrievalChain
+from document_processing.pdf import PDFRetrievalChain
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)

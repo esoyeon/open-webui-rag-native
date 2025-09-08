@@ -1,4 +1,4 @@
-from rag.base import RetrievalChain
+from document_processing.base import RetrievalChain
 from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document

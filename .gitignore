@@ -47,6 +47,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Egg packaging
+*.egg-info/
+dist/
+build/
+
 # C extensions
 *.so
 

@@ -14,7 +14,7 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
 from adaptive_rag import FAISSVectorStore
-from rag.pdf import PDFRetrievalChain
+from document_processing.pdf import PDFRetrievalChain
 from langchain_openai import OpenAIEmbeddings
 from dotenv import load_dotenv
 

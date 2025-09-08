@@ -230,9 +230,9 @@ RECURSION_LIMIT = 50      # LangGraph 재귀 한계
 ## 🤝 **커뮤니티 & 기여**
 
 ### **이 방법론을 다른 프로젝트에 적용하려면:**
-1. 📋 **[METHODOLOGY.md](./METHODOLOGY.md)** - 일반적 적용 방법론
-2. 🔧 **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** - Open WebUI 통합 상세 가이드
-3. 🛠️ **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - 문제 해결 및 FAQ
+1. 📋 **[방법론 문서](./docs/METHODOLOGY.md)** - 일반적 적용 방법론
+2. 🔧 **[통합 가이드](./docs/INTEGRATION_GUIDE.md)** - Open WebUI 통합 상세 가이드  
+3. 🛠️ **[문제 해결](./docs/TROUBLESHOOTING.md)** - 문제 해결 및 FAQ
 
 ### **지원하는 통합 방식:**
 - **OpenAI 호환 API 서버** (권장) - 가장 안정적이고 범용적
@@ -293,7 +293,7 @@ python scripts/start_webui_integration.py --mode api
 
 문제가 발생하거나 질문이 있으신가요?
 
-1. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - 일반적인 문제 해결
+1. **[문제 해결 가이드](./docs/TROUBLESHOOTING.md)** - 일반적인 문제 해결
 2. **[Issues](../../issues)** - GitHub 이슈 등록
 3. **[Discussions](../../discussions)** - 커뮤니티 토론
 
