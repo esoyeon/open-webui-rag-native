@@ -4,7 +4,7 @@
 
 이 프로젝트는 Open WebUI를 활용하여 자체 구현한 RAG(Retrieval-Augmented Generation) 시스템과 연동하는 방법을 학습할 수 있도록 구성되었습니다. 도커 없이 직접 환경을 구성하여 시스템의 동작 원리를 더 깊이 이해할 수 있습니다.
 
-> **🔗 관련 프로젝트**: [Docker 버전](https://github.com/username/llm_chatbot) - Docker를 사용한 간편한 설정
+> **🔗 관련 프로젝트**: [Docker 버전](https://github.com/esoyeon/llm_chatbot) - Docker를 사용한 간편한 설정
 
 ## 🚀 빠른 시작 가이드 (Quick Start)
 
@@ -68,8 +68,8 @@ Python 3.9 이상이 설치되어 있어야 합니다. 없다면 [python.org](ht
 ### 2단계: 프로젝트 다운로드
 
 ```bash
-git clone <repository-url>
-cd llm_chatbot_window
+git clone https://github.com/esoyeon/open-webui-rag-native.git
+cd open-webui-rag-native
 ```
 
 ### 3단계: 가상환경 생성 및 활성화
@@ -309,7 +309,7 @@ python scripts/start_webui.py
 ## 📁 프로젝트 구조
 
 ```
-llm_chatbot_window/
+open-webui-rag-native/
 ├── 📘 Python 백엔드 영역
 │   ├── adaptive_rag/          # RAG 핵심 로직 (Python)
 │   ├── document_processing/   # 문서 처리 모듈 (Python)
