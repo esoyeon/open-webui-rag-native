@@ -128,10 +128,27 @@ def install_dependencies() -> bool:
     npm_path = _resolve_cmd("npm")
 
     try:
-        # npm install --force (의존성 충돌 해결)
-        # 경고가 있더라도 continue 할 수 있도록 returncode 체크는 우리가 직접 함
+        # 1단계: npm cache 정리
+        print("   🧹 npm cache 정리 중...")
+        subprocess.run([npm_path, "cache", "clean", "--force"], 
+                      cwd=open_webui_root, capture_output=True, text=True)
+
+        # 2단계: package-lock.json 제거 (의존성 충돌 해결)
+        package_lock = open_webui_root / "package-lock.json"
+        if package_lock.exists():
+            print("   🗑️  기존 package-lock.json 제거 중...")
+            package_lock.unlink()
+
+        # 3단계: node_modules 제거 (깨끗한 설치)
+        node_modules = open_webui_root / "node_modules"
+        if node_modules.exists():
+            print("   🗑️  기존 node_modules 제거 중...")
+            shutil.rmtree(node_modules, ignore_errors=True)
+
+        # 4단계: npm install 실행
+        print("   📥 npm install 실행 중...")
         result = subprocess.run(
-            [npm_path, "install", "--force"],
+            [npm_path, "install", "--force", "--legacy-peer-deps"],
             cwd=open_webui_root,
             capture_output=True,
             text=True,
@@ -151,12 +168,34 @@ def install_dependencies() -> bool:
             # 정상 설치
             print("✅ 프론트엔드 패키지 설치 완료")
 
-        # node_modules 디렉토리 확인
-        node_modules = open_webui_root / "node_modules"
+        # 5단계: node_modules 디렉토리 확인
         if node_modules.exists():
             print(f"✅ node_modules 디렉토리 생성됨: {node_modules}")
+            
+            # pyodide 패키지 특별 확인
+            pyodide_path = node_modules / "pyodide"
+            if pyodide_path.exists():
+                print("✅ pyodide 패키지 설치 확인됨")
+            else:
+                print("⚠️  pyodide 패키지가 설치되지 않았습니다.")
+                print("   수동으로 설치를 시도합니다...")
+                
+                # pyodide 수동 설치 시도
+                pyodide_result = subprocess.run(
+                    [npm_path, "install", "pyodide@^0.27.3"],
+                    cwd=open_webui_root,
+                    capture_output=True,
+                    text=True,
+                )
+                
+                if pyodide_result.returncode == 0:
+                    print("✅ pyodide 패키지 수동 설치 완료")
+                else:
+                    print("❌ pyodide 패키지 수동 설치 실패")
+                    print(f"   에러: {pyodide_result.stderr[:500]}")
         else:
-            print("⚠️  node_modules 디렉토리가 생성되지 않았습니다.")
+            print("❌ node_modules 디렉토리가 생성되지 않았습니다.")
+            return False
 
         return True
 
