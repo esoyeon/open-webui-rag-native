@@ -63,7 +63,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/  # 주석 처리: open-webui/src/lib 폴더를 포함하기 위해
 lib64/
 parts/
 sdist/
