@@ -71,7 +71,7 @@ def main():
         logger.info("Please add PDF files to the documents directory and run again")
 
         # 샘플 PDF가 있다면 복사
-        sample_pdf = project_root / "data" / "SPRI_AI_Brief_2023년12월호_F.pdf"
+        sample_pdf = project_root / "data" / "RE-189_2024년국내외인공지능산업동향연구.pdf"
         if sample_pdf.exists():
             import shutil
 
@@ -80,6 +80,8 @@ def main():
             logger.info(f"Copied sample PDF: {target_pdf}")
             pdf_files = [target_pdf]
         else:
+            logger.warning("샘플 PDF도 찾을 수 없습니다.")
+            logger.info("data/documents/ 폴더에 PDF 파일을 추가한 후 다시 실행해주세요.")
             return 1
 
     logger.info(f"Found {len(pdf_files)} PDF files to index")

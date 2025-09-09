@@ -1,300 +1,504 @@
-# 🤖 Open WebUI + 자체 RAG 시스템 통합 프로젝트
+# Open WebUI + Adaptive RAG Integration (Docker-Free)
 
-> **Open WebUI를 자체 데이터베이스, RAG, Embedding API와 완벽 통합하는 실전 가이드**
+**도커 없이 Open WebUI와 Adaptive RAG 시스템을 연동하는 프로젝트**
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![LangChain](https://img.shields.io/badge/LangChain-0.3.27-green.svg)](https://langchain.com/)
-[![FAISS](https://img.shields.io/badge/FAISS-CPU-orange.svg)](https://faiss.ai/)
-[![Open WebUI](https://img.shields.io/badge/Open_WebUI-Compatible-purple.svg)](https://openwebui.com/)
+이 프로젝트는 Open WebUI를 활용하여 자체 구현한 RAG(Retrieval-Augmented Generation) 시스템과 연동하는 방법을 학습할 수 있도록 구성되었습니다. 도커 없이 직접 환경을 구성하여 시스템의 동작 원리를 더 깊이 이해할 수 있습니다.
 
-## 🎯 **프로젝트 목적**
+## 🚀 빠른 시작 가이드 (Quick Start)
 
-이 프로젝트는 **Open WebUI**를 자체적인 RAG(Retrieval-Augmented Generation) 시스템과 통합하는 **완전한 방법론**을 제공합니다.
+**전제 조건**: Python 3.9+ 와 Node.js 18+ 가 설치되어 있어야 합니다.
 
-### **핵심 가치**
-- 🔧 **실용적 가이드**: 실제 동작하는 코드와 단계별 설명
-- 🏗️ **확장 가능한 아키텍처**: 다른 프로젝트에 쉽게 적용 가능
-- 🇰🇷 **한국어 최적화**: 한국 사용자를 위한 완벽한 한국어 지원
-- 📚 **완전한 문서화**: 초보자도 따라할 수 있는 친절한 가이드
-
----
-
-## 🏗️ **시스템 아키텍처**
-
-```mermaid
-graph TB
-    A[사용자 질문] --> B[Open WebUI Frontend]
-    B --> C[OpenAI 호환 API 서버<br/>web_api_server.py]
-    C --> D{Query Router<br/>LangGraph}
-    
-    D -->|문서 기반 질문| E[FAISS 벡터스토어<br/>367개 문서 청크]
-    D -->|실시간 정보| F[Tavily 웹 검색<br/>실제 API]
-    
-    E --> G[Document Grader<br/>관련성 검증]
-    F --> H[Web Results<br/>실시간 정보]
-    
-    G --> I[Answer Generator<br/>구조화된 답변]
-    H --> I
-    
-    I --> J[Hallucination Grader<br/>환상 검증]
-    J --> K[Answer Quality Grader<br/>품질 검증]
-    K --> L[최종 답변]
-    L --> B
-```
-
-### **핵심 컴포넌트**
-
-#### 🧠 **Adaptive RAG Engine** 
-- **LangGraph 기반**: 자가 수정 워크플로우
-- **이중 검증**: 문서 관련성 + 환상 검증  
-- **Query Rewriting**: 검색 실패 시 질문 재작성
-
-#### 🔍 **하이브리드 검색**
-- **벡터 검색**: FAISS + OpenAI Embeddings
-- **웹 검색**: Tavily API (실시간 정보)
-- **지능형 라우팅**: 질문 유형에 따른 자동 선택
-
-#### 🌐 **OpenAI 호환 API**
-- **표준 엔드포인트**: `/v1/chat/completions`, `/v1/models`
-- **Open WebUI 네이티브 지원**: 추가 설정 없이 연동
-- **Docker 환경 지원**: `host.docker.internal` 자동 처리
-
----
-
-## 🚀 **빠른 시작**
-
-### **1단계: 환경 설정**
 ```bash
-# 저장소 클론
-git clone <your-repo>
-cd llm_chatbot
+# 1. 가상환경 생성 및 활성화
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # macOS/Linux
 
-# 가상환경 생성 (uv 권장)
-uv venv
-source .venv/bin/activate
+# 2. 패키지 설치
+pip install -r requirements.txt
 
-# 의존성 설치
-uv pip install -e .
+# 3. 환경 변수 설정 (.env 파일 생성)
+# OPENAI_API_KEY=sk-your-api-key
+# ENABLE_EVALUATION_ARENA_MODELS=False (Arena Model 제거)
+
+# 4. 프론트엔드 빌드 (첫 실행시만, 5-10분 소요)
+python scripts/build_frontend.py
+
+# 5. 문서 인덱싱
+python scripts/index_documents.py
+
+# 6. 서버 실행 (2개 터미널 필요)
+# 터미널1: python scripts/start_rag_server.py
+# 터미널2: python scripts/start_webui.py
+
+# 7. 브라우저에서 http://localhost:8080 접속
 ```
 
-### **2단계: API 키 설정**
+## 📋 주요 특징
+
+- 🚫 **도커 없이 실행**: 복잡한 컨테이너 설정 없이 직접 환경 구성
+- 🔗 **Open WebUI 연동**: 자체 RAG API를 Open WebUI에 연결
+- 📚 **Adaptive RAG**: LangGraph 기반의 지능형 문서 검색
+- 📖 **교육용 설계**: 학습자가 직접 환경을 구성하며 시스템 동작 원리 이해
+- 🌐 **크로스 플랫폼**: Windows, macOS, Linux에서 모두 실행 가능
+
+## 🛠 시스템 요구사항
+
+- **운영체제**: Windows 10/11, macOS 10.15+, Ubuntu 18.04+ (또는 동등한 Linux 배포판)
+- **Python**: 3.9 이상
+- **Node.js**: 18 이상 (프론트엔드 빌드용)
+- **메모리**: 8GB 이상 권장
+- **디스크**: 5GB 이상 여유공간
+
+## 📦 환경 설정 가이드
+
+### 1단계: Python 설치 확인
+
+터미널(명령 프롬프트 또는 PowerShell)을 열고 Python 버전을 확인하세요:
+
 ```bash
-# .env 파일 생성
-cp env_example.txt .env
-
-# 필수 API 키 입력
-# OPENAI_API_KEY=sk-proj-your-key...
-# TAVILY_API_KEY=tvly-your-key...
+python --version
 ```
 
-### **3단계: 문서 인덱싱**
+Python 3.9 이상이 설치되어 있어야 합니다. 없다면 [python.org](https://python.org)에서 설치하세요.
+
+### 2단계: 프로젝트 다운로드
+
 ```bash
-# PDF 문서를 data/ 폴더에 추가
-cp your-documents.pdf data/
-
-# 벡터 스토어 구축
-python scripts/index_documents.py --docs-dir data --force-rebuild
+git clone <repository-url>
+cd llm_chatbot_window
 ```
 
-### **4단계: 시스템 실행**
+### 3단계: 가상환경 생성 및 활성화
+
+**Windows (명령 프롬프트):**
+```cmd
+python -m venv venv
+venv\Scripts\activate
+```
+
+**Windows (PowerShell):**
+```powershell
+python -m venv venv
+venv\Scripts\Activate.ps1
+```
+
+**macOS/Linux:**
 ```bash
-# 전체 시스템 자동 실행
-python scripts/start_webui_integration.py --mode api
-
-# 브라우저에서 http://localhost:3000 접속
+python -m venv venv
+source venv/bin/activate
 ```
 
-### **5단계: 백엔드 연결 (Web UI에서)**
-- **Admin Panel** → **Connections** → **OpenAI API**
-- **API Base URL**: `http://host.docker.internal:8000/v1`
-- **API Key**: `sk-dummy-key` (아무 값)
+가상환경이 활성화되면 터미널 앞에 `(venv)`가 표시됩니다.
 
----
+### 4단계: 패키지 설치
 
-## 📊 **실제 성능 테스트**
+프로젝트에 필요한 패키지들을 설치하세요:
 
-### **✅ 문서 기반 질문**
-```
-질문: "문서에서 독일과 한국의 AI 정책을 비교해주세요"
-
-답변:
-## 📋 핵심 내용
-- 독일: 'AI made in Germany' 전략, 2025년까지 50억 유로 투자
-- 한국: 과학기술정보통신부 주도, AI 안전연구소 설립
-
-## 📊 비교/특징
-- 독일: 12개 분야 구조화된 정책 (연구강화, 기업역량 등)
-- 한국: NIA 중심 연구보고서, 국제 비교 분석 강화
-
-## 💡 시사점
-[구체적 분석 및 전망...]
-```
-
-### **✅ 실시간 정보 질문**
-```
-질문: "오늘 AI 관련 뉴스를 알려주세요"
-
-답변: 실제 Tavily API를 통한 최신 뉴스 제공
-- 삼성전자 마이크로 RGB TV 출시
-- KB금융 AI 예술 영상 100만회 돌파
-- 포티투닷 5003억원 유상증자...
-```
-
----
-
-## 📁 **프로젝트 구조**
-
-```
-llm_chatbot/
-├── 📄 README.md                    # 메인 문서 (이 파일)
-├── 📋 INTEGRATION_GUIDE.md         # Open WebUI 통합 완전 가이드  
-├── 🛠️ METHODOLOGY.md              # 다른 프로젝트 적용 방법론
-├── 🔧 TROUBLESHOOTING.md          # 문제 해결 및 FAQ
-├── 📝 HOW_TO_RUN.md               # 빠른 실행 가이드
-├── 📚 PDF_UPDATE_GUIDE.md         # PDF 문서 업데이트 방법
-│
-├── 🧠 adaptive_rag/               # 핵심 RAG 엔진
-│   ├── router.py                  # 쿼리 라우팅 (벡터스토어 vs 웹검색)
-│   ├── nodes.py                   # LangGraph 노드 (검색, 생성, 검증)
-│   ├── grader.py                  # 품질 검증 (문서 관련성, 환상 검증)
-│   ├── rewriter.py                # 쿼리 재작성 (검색 최적화)
-│   ├── vector_store.py            # FAISS 벡터 스토어
-│   └── graph.py                   # LangGraph 워크플로우 오케스트레이션
-│
-├── 🔌 pipelines/                  # Open WebUI 통합
-│   └── adaptive_rag_pipeline.py   # Pipe 인터페이스 구현
-│
-├── 🌐 web_api_server.py           # OpenAI 호환 API 서버 (메인)
-├── 🔧 pipelines_server.py         # Pipelines Plugin 서버 (대안)
-│
-├── 📜 scripts/                    # 유틸리티 스크립트
-│   ├── index_documents.py         # 문서 인덱싱 및 벡터화
-│   ├── start_webui_integration.py # 통합 시스템 실행
-│   └── test_pipeline.py           # 개별 컴포넌트 테스트
-│
-├── 📚 data/                       # 데이터 및 벡터 스토어
-│   ├── *.pdf                      # 소스 PDF 문서
-│   └── vector_store/              # FAISS 인덱스 파일
-│
-├── ⚙️ pyproject.toml              # 의존성 및 프로젝트 설정
-└── 🔐 .env                        # API 키 설정 (gitignore)
-```
-
----
-
-## 🎯 **주요 특징**
-
-### **🧠 고도화된 RAG**
-- **Adaptive 워크플로우**: 실패 시 자동 재시도 및 개선
-- **이중 품질 검증**: 관련성 + 환상 검증으로 정확성 보장
-- **10개 문서 검색**: 더 풍부한 컨텍스트 제공
-
-### **🌐 완벽한 웹 통합**
-- **OpenAI 호환**: 기존 도구들과 완전 호환
-- **Docker 지원**: 컨테이너 환경에서 안정적 작동
-- **실시간 검색**: Mock이 아닌 실제 Tavily API 사용
-
-### **🇰🇷 한국어 최적화**
-- **모든 시스템 프롬프트 한국어**: 라우터, 검증, 생성 모든 단계
-- **언어 보존**: 한국어 질문 → 한국어 답변 자동 보장
-- **한국 문서 특화**: 한국 AI 정책, 산업 동향 전문 데이터
-
-### **📊 구조화된 답변**
-- **4단계 구조**: 핵심내용 → 상세분석 → 비교특징 → 시사점
-- **비교 분석 특화**: 국가별, 기업별, 정책별 체계적 비교
-- **이모지 활용**: 가독성 높은 시각적 구조화
-
----
-
-## 🔧 **고급 설정**
-
-### **벡터 스토어 커스터마이징**
-```python
-# adaptive_rag/vector_store.py에서 설정
-EMBEDDING_MODEL = "text-embedding-3-large"  # 더 높은 품질
-SIMILARITY_TOP_K = 10                       # 검색 문서 수
-CHUNK_SIZE = 1500                          # 청크 크기
-CHUNK_OVERLAP = 200                        # 청크 중복
-```
-
-### **답변 품질 조정**
-```python
-# adaptive_rag/nodes.py에서 설정
-TEMPERATURE = 0.1          # 더 일관된 답변
-MAX_RETRIES = 3           # 재시도 횟수
-RECURSION_LIMIT = 50      # LangGraph 재귀 한계
-```
-
----
-
-## 🤝 **커뮤니티 & 기여**
-
-### **이 방법론을 다른 프로젝트에 적용하려면:**
-1. 📋 **[방법론 문서](./docs/METHODOLOGY.md)** - 일반적 적용 방법론
-2. 🔧 **[통합 가이드](./docs/INTEGRATION_GUIDE.md)** - Open WebUI 통합 상세 가이드  
-3. 🛠️ **[문제 해결](./docs/TROUBLESHOOTING.md)** - 문제 해결 및 FAQ
-
-### **지원하는 통합 방식:**
-- **OpenAI 호환 API 서버** (권장) - 가장 안정적이고 범용적
-- **Pipelines Plugin Framework** - Open WebUI 네이티브 통합
-- **직접 FastAPI 통합** - 완전한 커스터마이징
-
----
-
-## 📈 **성능 지표**
-
-- **문서 처리**: 367개 청크 (RE-189 AI 산업동향 보고서)
-- **검색 속도**: 평균 1-2초 (임베딩 + 검색)  
-- **답변 생성**: 평균 5-10초 (품질 검증 포함)
-- **정확도**: 환상 검증을 통한 높은 신뢰도
-- **언어 지원**: 한국어 완벽 지원, 영어 호환
-
----
-
-## 🏆 **완성된 기능**
-
-- ✅ **완전한 Adaptive RAG 워크플로우**
-- ✅ **실제 Tavily 웹 검색 통합** 
-- ✅ **OpenAI 호환 API 서버**
-- ✅ **Open WebUI Docker 연동**
-- ✅ **구조화된 답변 생성**
-- ✅ **비교 분석 특화**
-- ✅ **한국어 완벽 최적화**
-- ✅ **PDF 문서 자동 업데이트**
-- ✅ **환상 검증 및 품질 보장**
-- ✅ **완전한 문서화**
-
----
-
-## 🎉 **결론**
-
-이 프로젝트는 **Open WebUI와 자체 RAG 시스템을 통합**하는 완전한 해결책을 제공합니다. 단순한 예제가 아닌, **실제 운영 환경에서 사용 가능한 완성된 시스템**입니다.
-
-**특히 다음과 같은 경우에 매우 유용합니다:**
-- 🏢 회사 내부 문서를 기반으로 한 AI 챗봇 구축
-- 🎓 연구 논문이나 보고서 기반 질의응답 시스템  
-- 📚 특정 도메인 지식 기반 전문 AI 어시스턴트
-- 🌐 Open WebUI의 기본 기능을 자체 데이터로 확장
-
-### **시작해보세요!**
 ```bash
-# 한 줄로 전체 시스템 실행
-python scripts/start_webui_integration.py --mode api
-
-# 브라우저에서 http://localhost:3000 접속
-# 백엔드 설정: http://host.docker.internal:8000/v1
+pip install -r requirements.txt
 ```
 
-**🎯 5분 안에 자신만의 AI 챗봇을 완성할 수 있습니다!**
+**설치되는 주요 패키지들:**
+- `langchain`, `langgraph`: RAG 시스템 구축
+- `faiss-cpu`: 벡터 검색 엔진
+- `fastapi`, `uvicorn`: API 서버 구축
+- `pdfplumber`: PDF 문서 처리
+- `openai`: OpenAI API 연동
 
----
+### 5단계: 환경 변수 설정 (.env 파일)
 
-## 📞 **지원 & 문의**
+프로젝트 루트 디렉토리에 `.env` 파일을 생성하고 다음 내용을 입력하세요(env_example.txt 파일 참고):
 
-문제가 발생하거나 질문이 있으신가요?
+```env
+# OpenAI API 설정 (필수)
+OPENAI_API_KEY=your_openai_api_key_here
 
-1. **[문제 해결 가이드](./docs/TROUBLESHOOTING.md)** - 일반적인 문제 해결
-2. **[Issues](../../issues)** - GitHub 이슈 등록
-3. **[Discussions](../../discussions)** - 커뮤니티 토론
+# 서버 설정 (기본값 사용 시 수정하지 않아도 됨)
+RAG_SERVER_HOST=127.0.0.1
+RAG_SERVER_PORT=8000
 
-**🚀 함께 더 나은 AI 통합 생태계를 만들어가요!**
+# Open WebUI 설정
+WEBUI_HOST=127.0.0.1
+WEBUI_PORT=8080
+
+# 벡터 스토어 설정
+VECTOR_STORE_PATH=data/vector_store
+DOCUMENTS_PATH=data/documents
+
+# Open WebUI 모델 설정 (RAG 시스템만 사용)
+ENABLE_EVALUATION_ARENA_MODELS=False
+ENABLE_OLLAMA_API=False
+ENABLE_OPENAI_API=True
+
+# Open WebUI 자체 RAG 기능 비활성화 (외부 RAG API 사용)
+ENABLE_RAG=False
+ENABLE_RAG_HYBRID_SEARCH=False
+ENABLE_RAG_WEB_LOADER=False
+```
+
+⚠️ **중요**: `your_openai_api_key_here`를 실제 OpenAI API 키로 교체하세요.
+
+### 6단계: 디렉토리 생성
+
+필요한 디렉토리들을 만들어주세요:
+
+**macOS/Linux:**
+```bash
+mkdir -p data/documents
+mkdir -p data/vector_store
+mkdir -p logs
+```
+
+**Windows:**
+```cmd
+mkdir data\documents
+mkdir data\vector_store  
+mkdir logs
+```
+
+### 7단계: 문서 추가
+
+`data/documents/` 폴더에 학습시키고 싶은 PDF 문서들을 복사하세요.
+
+예시:
+- AI 관련 논문 PDF
+- 회사 문서 PDF  
+- 교육 자료 PDF
+
+### 8단계: 문서 인덱싱
+
+문서들을 벡터 데이터베이스에 저장하세요:
+
+```bash
+python scripts/index_documents.py
+```
+
+성공하면 `data/vector_store/` 폴더에 `faiss.index`와 `documents.pkl` 파일이 생성됩니다.
+
+### 9단계: Open WebUI 프론트엔드 빌드 (중요!)
+
+Open WebUI는 백엔드(Python/FastAPI)와 프론트엔드(Svelte/JavaScript)로 구성되어 있습니다.
+웹 인터페이스를 사용하려면 프론트엔드를 빌드해야 합니다.
+
+#### 🔍 이해하기: Python venv vs Node.js 환경
+
+**두 환경은 독립적으로 작동합니다:**
+
+| 구분 | Python 백엔드 | JavaScript 프론트엔드 |
+|------|--------------|---------------------|
+| **환경** | venv (가상환경) | Node.js (전역 설치) |
+| **패키지 관리** | pip, requirements.txt | npm, package.json |
+| **패키지 위치** | venv/lib/python3.x/ | node_modules/ |
+| **실행 시점** | 서버 실행 중 계속 필요 | 빌드 시에만 필요 |
+| **결과물** | Python 코드 실행 | HTML/CSS/JS 정적 파일 생성 |
+
+**실제 사용 예시:**
+```bash
+# Python 환경 (venv 활성화된 상태)
+(venv) > pip install fastapi  # Python 패키지 설치
+(venv) > npm install svelte    # JavaScript 패키지 설치 (venv와 무관!)
+```
+
+💡 **핵심**: venv는 Python만을 위한 것이고, Node.js는 별도로 작동합니다.
+터미널에 `(venv)`가 표시되어도 npm 명령어는 정상적으로 작동합니다.
+
+#### 9-1. Node.js 설치 확인
+
+**왜 필요한가?**
+- Open WebUI의 프론트엔드는 JavaScript 기반(Svelte)으로 개발됨
+- Node.js는 JavaScript 코드를 브라우저가 이해할 수 있는 형태로 변환(빌드)하는데 필요
+
+```bash
+node --version
+npm --version
+```
+
+Node.js가 없다면 [nodejs.org](https://nodejs.org)에서 LTS 버전을 다운로드하여 설치하세요.
+
+#### 9-2. 프론트엔드 빌드 실행
+
+```bash
+python scripts/build_frontend.py
+```
+
+**이 스크립트가 하는 일:**
+1. Node.js 설치 확인
+2. JavaScript 패키지 설치 (`npm install`)
+3. 프론트엔드 소스코드를 정적 파일로 빌드 (`npm run build`)
+4. 빌드 결과를 `open-webui/build/` 폴더에 저장
+
+**소요 시간**: 첫 실행 시 5-10분 (패키지 다운로드 및 빌드)
+
+⚠️ **주의사항**:
+- 인터넷 연결이 필요합니다 (npm 패키지 다운로드)
+- 디스크 공간 약 500MB 필요 (node_modules 폴더)
+- Windows에서 관리자 권한이 필요할 수 있습니다
+
+## 🚀 실행 방법
+
+두 개의 터미널을 사용해서 서버들을 실행해야 합니다.
+
+### 터미널 1: RAG API 서버 시작
+
+```bash
+# 가상환경이 활성화되어 있는지 확인
+python scripts/start_rag_server.py
+```
+
+성공하면 다음과 같은 메시지가 나타납니다:
+```
+🚀 RAG API 서버를 시작합니다...
+📍 주소: http://127.0.0.1:8000
+📖 API 문서: http://127.0.0.1:8000/docs
+```
+
+### 터미널 2: Open WebUI 서버 시작
+
+```bash  
+# 새로운 터미널을 열고 가상환경 활성화
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
+
+python scripts/start_webui.py
+```
+
+성공하면 다음과 같은 메시지가 나타납니다:
+```
+🚀 Open WebUI를 시작합니다...
+📍 주소: http://127.0.0.1:8080
+```
+
+## 🌐 사용 방법
+
+### 웹 인터페이스 접속
+
+1. 웹 브라우저에서 **http://localhost:8080** 접속
+2. 첫 방문 시 계정 생성 (이메일과 패스워드 입력)
+3. 로그인 완료 후 채팅 인터페이스 확인
+
+### RAG 시스템 테스트
+
+채팅창에서 다음과 같은 질문들을 해보세요:
+
+**일반적인 질문:**
+- "안녕하세요!"
+- "이 시스템은 무엇인가요?"
+
+**문서 기반 질문 (PDF 내용에 따라):**
+- "이 문서의 주요 내용을 요약해주세요"
+- "AI 동향에 대해 알려주세요"
+- "문서에서 언급된 기술들은 무엇인가요?"
+
+### 시스템 동작 방식
+
+**준비 단계 (최초 1회):**
+1. **프론트엔드 빌드** → JavaScript 코드를 HTML/CSS/JS 파일로 변환
+2. **문서 인덱싱** → PDF를 벡터 데이터베이스에 저장
+
+**실행 단계 (매번):**
+1. **질문 입력** → Open WebUI 인터페이스 (브라우저)
+2. **요청 전달** → Open WebUI 백엔드 → RAG API 서버 (포트 8000)
+3. **문서 검색** → FAISS 벡터 스토어에서 관련 문서 찾기
+4. **답변 생성** → OpenAI GPT를 사용해 문서 기반 답변 생성
+5. **응답 표시** → Open WebUI에서 최종 답변 표시
+
+## 📁 프로젝트 구조
+
+```
+llm_chatbot_window/
+├── 📘 Python 백엔드 영역
+│   ├── adaptive_rag/          # RAG 핵심 로직 (Python)
+│   ├── document_processing/   # 문서 처리 모듈 (Python)
+│   ├── pipelines/            # RAG 파이프라인 (Python)
+│   ├── scripts/              # 실행 스크립트들 (Python)
+│   │   ├── index_documents.py   # 문서 인덱싱
+│   │   ├── build_frontend.py    # 프론트엔드 빌드 실행
+│   │   ├── start_rag_server.py  # RAG 서버 시작
+│   │   └── start_webui.py      # WebUI 서버 시작
+│   ├── venv/                 # Python 가상환경 (생성 후)
+│   └── requirements.txt      # Python 패키지 목록
+│
+├── 📗 JavaScript 프론트엔드 영역
+│   └── open-webui/           
+│       ├── src/              # Svelte 소스코드 (JavaScript)
+│       ├── package.json      # JavaScript 패키지 목록
+│       ├── node_modules/     # JavaScript 패키지들 (설치 후)
+│       ├── build/            # 빌드된 정적 파일 (빌드 후)
+│       └── backend/          # Open WebUI 백엔드 (Python)
+│
+├── 💾 데이터 영역
+│   └── data/
+│       ├── documents/        # PDF 문서 저장
+│       └── vector_store/     # 벡터 데이터베이스
+│
+└── ⚙️ 설정 파일
+    ├── .env                  # 환경 변수 (직접 생성)
+    └── .gitignore           # Git 제외 목록
+```
+
+## 🔧 구성 요소
+
+### Adaptive RAG 시스템
+- **Router**: 질문 유형 분석 및 라우팅
+- **Retriever**: 관련 문서 검색
+- **Grader**: 문서 관련성 평가
+- **Rewriter**: 질문 재작성
+- **Generator**: 최종 답변 생성
+
+### Open WebUI 연동
+- OpenAI 호환 API 엔드포인트 제공
+- 실시간 채팅 인터페이스
+- 사용자 관리 시스템
+
+## 💾 데이터 관리
+
+Open WebUI는 사용자 데이터를 SQLite 데이터베이스에 저장합니다. 자세한 내용은 [기술 가이드](TECHNICAL_GUIDE.md#데이터-저장소-open-webui)를 참조하세요.
+
+
+## 🔍 API 엔드포인트
+
+RAG 서버가 실행되면 다음 엔드포인트를 사용할 수 있습니다:
+
+- `GET /health`: 서버 상태 확인
+- `POST /v1/chat/completions`: OpenAI 호환 채팅 API
+- `GET /docs`: API 문서 (Swagger UI)
+
+## ⚠️ 문제 해결
+
+### 환경 설정 문제
+
+**Q: `python --version`이 작동하지 않아요**
+- Windows에서 Python을 Microsoft Store에서 설치했다면 `python3` 명령어 사용
+- PATH 환경변수에 Python이 등록되어 있는지 확인
+- 명령 프롬프트를 관리자 권한으로 실행해보기
+
+**Q: 가상환경 활성화가 안 돼요**
+- Windows PowerShell에서 실행 정책 오류가 나면:
+  ```powershell
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+  ```
+- 그 후 다시 `venv\Scripts\Activate.ps1` 실행
+
+**Q: 패키지 설치가 실패해요**
+- 가상환경이 활성화되어 있는지 확인 (`(venv)` 표시)
+- pip 업데이트: `python -m pip install --upgrade pip`
+- 전체 재설치: `pip install -r requirements.txt --force-reinstall`
+- 특정 패키지 오류 시 개별 설치: `pip install 패키지명`
+
+### 프론트엔드 빌드 문제
+
+**Q: Node.js/npm이 인식되지 않아요**
+- Node.js 설치 후 터미널을 완전히 닫고 새로 열어보세요
+- Windows: 환경변수 PATH에 Node.js가 추가되었는지 확인
+- `where node` (Windows) 또는 `which node` (macOS/Linux)로 경로 확인
+
+**Q: npm install이 실패해요**
+- 관리자 권한으로 터미널 실행 (Windows)
+- 캐시 정리: `npm cache clean --force`
+- 프록시 환경이라면: `npm config set proxy http://proxy-server:port`
+
+**Q: 빌드가 메모리 부족으로 실패해요**
+- 다른 프로그램을 종료하여 메모리 확보
+- Node.js 메모리 늘리기: `set NODE_OPTIONS=--max-old-space-size=4096` (Windows)
+
+**Q: "Cannot find module" 오류가 나요**
+- `node_modules` 폴더 삭제 후 재설치:
+  ```bash
+  cd open-webui
+  rm -rf node_modules  # Windows: rmdir /s node_modules
+  npm install --force
+  ```
+
+### 서버 실행 문제
+
+**Q: RAG 서버가 시작되지 않아요**
+- `.env` 파일의 `OPENAI_API_KEY`가 올바르게 설정되었는지 확인
+- API 키 형식: `sk-...`로 시작하는 문자열
+- 포트 8000이 다른 프로그램에서 사용 중인지 확인
+
+**Q: Open WebUI 서버가 시작되지 않아요**
+- RAG 서버(포트 8000)가 먼저 실행되어 있는지 확인
+- 포트 8080이 사용 가능한지 확인
+- Open WebUI 의존성이 설치되었는지 확인
+
+**Q: 웹 페이지에 접속이 안 돼요**
+- 서버 시작 메시지에서 올바른 주소 확인
+- 방화벽이 포트를 차단하지 않는지 확인
+- 다른 브라우저로 시도해보기
+
+### 모델 및 UI 문제
+
+**Q: Arena Model이나 불필요한 모델들이 보여요**
+- `.env` 파일에 다음 설정 추가:
+  ```env
+  ENABLE_EVALUATION_ARENA_MODELS=False
+  ENABLE_OLLAMA_API=False
+  ```
+- Open WebUI 서버를 재시작해주세요
+- 브라우저 캐시를 삭제하고 페이지를 새로고침해주세요
+
+**Q: 모델 선택에서 RAG 모델만 보이게 하고 싶어요**
+- 위의 Arena Model 제거 설정 적용
+- RAG API 서버가 올바르게 실행 중인지 확인
+- Open WebUI 설정에서 다른 AI 제공자들을 비활성화
+
+**Q: 로그에 "VECTOR_DB: chroma"가 나타나요**
+- 이는 Open WebUI의 자체 RAG 기능이 활성화되어 있기 때문입니다
+- `.env` 파일에 `ENABLE_RAG=False` 설정을 추가하세요
+- Open WebUI 서버를 재시작하면 사라집니다
+
+### 문서 및 RAG 문제
+
+**Q: 문서 인덱싱이 실패해요**
+- `data/documents/` 폴더에 PDF 파일이 있는지 확인
+- PDF 파일이 손상되지 않았는지 확인
+- OpenAI API 키와 인터넷 연결 상태 확인
+
+**Q: 질문에 답변하지 못해요**
+- 벡터 스토어가 생성되었는지 확인 (`data/vector_store/faiss.index` 파일 존재)
+- 업로드한 문서와 관련된 질문인지 확인
+- RAG 서버 로그에서 오류 메시지 확인
+
+**Q: "문서에서 찾을 수 없습니다"라고 답해요**
+- 질문이 업로드한 문서 내용과 관련이 있는지 확인
+- 더 구체적이고 명확한 질문으로 다시 시도
+- 문서에 해당 내용이 실제로 포함되어 있는지 확인
+
+### 디버깅 팁
+
+**서버 상태 확인:**
+```bash
+# RAG API 서버 동작 확인
+curl http://localhost:8000/health
+
+# API 문서 확인
+# 브라우저에서 http://localhost:8000/docs 접속
+```
+
+**로그 확인:**
+- RAG 서버: 터미널에서 오류 메시지 확인
+- Open WebUI: 브라우저 개발자 도구(F12) 콘솔 확인
+
+
+## 🔧 확장 가능성
+
+이 기본 구조를 바탕으로 다음과 같은 기능들을 추가해볼 수 있습니다:
+
+- **다른 문서 형식 지원**: Word, Excel, PowerPoint 등
+- **다양한 벡터 DB**: Chroma, Pinecone, Weaviate 등
+- **멀티모달 RAG**: 이미지, 음성 포함 문서 처리
+- **사용자별 문서 관리**: 개인화된 지식베이스
+- **실시간 문서 업데이트**: 문서 변경 시 자동 재인덱싱
+
+## 📚 추가 학습 자료
+
+- [LangChain 공식 문서](https://python.langchain.com/)
+- [LangGraph 튜토리얼](https://langchain-ai.github.io/langgraph/)
+- [Open WebUI 문서](https://docs.openwebui.com/)
+- [FAISS 가이드](https://faiss.ai/)
+- [FastAPI 튜토리얼](https://fastapi.tiangolo.com/tutorial/)
+
+## 📄 라이선스
+
+Open WebUI는 원본 라이선스를 따릅니다.
