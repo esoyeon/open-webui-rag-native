@@ -57,11 +57,40 @@ def _resolve_cmd(name: str) -> str:
     return name
 
 
+def _run_windows_safe(cmd, **kwargs) -> subprocess.CompletedProcess:
+    """
+    Windows에서 안전한 subprocess 실행을 위한 래퍼
+    """
+    if os.name == "nt":  # Windows
+        # Windows 환경 설정
+        env = kwargs.get('env', os.environ.copy())
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["CHCP"] = "65001"
+        kwargs['env'] = env
+        
+        # 인코딩 설정
+        kwargs.setdefault('encoding', 'utf-8')
+        kwargs.setdefault('errors', 'replace')
+        
+        # Windows에서 shell=True 사용 (일부 npm 명령어 호환성)
+        if not kwargs.get('shell', False):
+            kwargs['shell'] = True
+            # shell=True일 때 명령어를 문자열로 변환
+            if isinstance(cmd, list):
+                cmd = ' '.join(f'"{arg}"' if ' ' in str(arg) else str(arg) for arg in cmd)
+    
+    return subprocess.run(cmd, **kwargs)
+
+
 def _run(cmd, **kwargs) -> subprocess.CompletedProcess:
     """
     공통 실행 래퍼: 에러 내용을 보기 좋게 정리.
     """
     try:
+        # Windows 인코딩 문제 해결
+        if os.name == "nt" and 'encoding' not in kwargs:
+            kwargs['encoding'] = 'utf-8'
+            kwargs['errors'] = 'replace'
         return subprocess.run(cmd, check=True, capture_output=True, text=True, **kwargs)
     except subprocess.CalledProcessError as e:
         out = (e.stdout or "").strip()
@@ -130,7 +159,7 @@ def install_dependencies() -> bool:
     try:
         # npm install --force (의존성 충돌 해결)
         # 경고가 있더라도 continue 할 수 있도록 returncode 체크는 우리가 직접 함
-        result = subprocess.run(
+        result = _run_windows_safe(
             [npm_path, "install", "--force"],
             cwd=open_webui_root,
             capture_output=True,
@@ -176,7 +205,7 @@ def build_frontend() -> bool:
     npm_path = _resolve_cmd("npm")
 
     try:
-        result = subprocess.run(
+        result = _run_windows_safe(
             [npm_path, "run", "build"],
             cwd=open_webui_root,
             capture_output=True,
