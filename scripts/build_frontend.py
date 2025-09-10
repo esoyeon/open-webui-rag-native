@@ -67,6 +67,10 @@ def _run_windows_safe(cmd, **kwargs) -> subprocess.CompletedProcess:
         env["PYTHONIOENCODING"] = "utf-8"
         env["CHCP"] = "65001"
         kwargs['env'] = env
+
+        # 🔽 추가: Node 힙 상한 (필요 시 값만 조정)
+        env.setdefault("NODE_OPTIONS", "--max-old-space-size=8192")
+        kwargs['env'] = env
         
         # 인코딩 설정
         kwargs.setdefault('encoding', 'utf-8')

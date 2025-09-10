@@ -93,7 +93,11 @@ venv\Scripts\activate
 python -m venv venv
 venv\Scripts\Activate.ps1
 ```
-
+**Windows (PowerShell) 파이썬 버전 지정:**
+```powershell
+py -3.11 -m venv .venv311
+.\.venv311\Scripts\activate
+```
 **macOS/Linux:**
 ```bash
 python -m venv venv

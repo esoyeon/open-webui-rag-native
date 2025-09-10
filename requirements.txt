@@ -1,23 +1,54 @@
-# Core RAG dependencies
+# Minimal Core RAG
 faiss-cpu>=1.11.0.post1
-langchain>=0.3.0
-langchain-community>=0.3.0  
+langchain==0.3.26
+langchain-community==0.3.27
 langchain-openai>=0.3.0
 langgraph>=0.5.0
-
-# Document processing
-pdfplumber>=0.11.0
-unstructured>=0.18.0
 python-dotenv>=1.0.0
 
-# Web server dependencies
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-requests>=2.31.0
+# Backend Core (API server)
+fastapi==0.115.7
+uvicorn[standard]==0.35.0
+pydantic==2.11.7
+python-multipart==0.0.20
+requests==2.32.4
+httpx[socks,http2,zstd,cli,brotli]==0.28.1
 
-# Data processing
-pandas>=2.0.0
-numpy>=1.24.0
+# Realtime / sockets
+python-socketio==5.13.0
+pycrdt==0.12.25
 
-# Type annotations (for Python < 3.11 compatibility)
+# Auth & security
+python-jose[cryptography]==3.4.0
+passlib[bcrypt]==1.7.4
+PyJWT[crypto]==2.10.1
+authlib==1.6.3
+cryptography
+bcrypt==4.3.0
+itsdangerous>=2.1.0
+
+# Async & IO
+aiohttp==3.12.15
+aiocache
+aiofiles
+async-timeout
+starlette-compress==1.6.0
+
+# Document loading (for scripts/index_documents.py)
+pdfplumber>=0.11.0
+
+# Database (SQLite by default; others optional but common)
+sqlalchemy==2.0.38
+alembic==1.14.0
+peewee==3.18.1
+peewee-migrate==1.12.2
+psycopg2-binary>=2.9.10
+pgvector==0.4.0
+PyMySQL==1.1.1
+redis
+pymongo
+
+# Logging & runtime utils
+loguru==0.7.3
+asgiref==3.8.1
 typing-extensions>=4.0.0

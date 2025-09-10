@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/jupyternotebooks,python
 # Edit at https://www.toptal.com/developers/gitignore?templates=jupyternotebooks,python
 
+# open-webui/ (이제 프로젝트의 일부로 관리)
+
 # 파일
 .DS_Store
 *.env
@@ -167,6 +169,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv311/
 env/
 venv/
 ENV/
@@ -221,22 +224,22 @@ Desktop.ini
 *.db
 
 # Open WebUI data (사용자 데이터만 제외)
-open-webui/backend/data/
+# open-webui/ (이제 프로젝트의 일부로 관리)backend/data/
 
 # Node.js / Frontend build (빌드 결과물만 제외)
 node_modules/
-open-webui/node_modules/
-open-webui/build/
-open-webui/.svelte-kit/
+# open-webui/ (이제 프로젝트의 일부로 관리)node_modules/
+# open-webui/ (이제 프로젝트의 일부로 관리)build/
+# open-webui/ (이제 프로젝트의 일부로 관리).svelte-kit/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # Open WebUI generated files (자동 생성 파일만 제외)
 # Pyodide distribution (공식 Open WebUI와 동일한 정책)
-open-webui/static/pyodide/*
-!open-webui/static/pyodide/pyodide-lock.json
-open-webui/backend/open_webui/static/
+# open-webui/ (이제 프로젝트의 일부로 관리)static/pyodide/*
+!# open-webui/ (이제 프로젝트의 일부로 관리)static/pyodide/pyodide-lock.json
+# open-webui/ (이제 프로젝트의 일부로 관리)backend/open_webui/static/
 
 # Vector store and documents (comment out to include sample documents)
 # data/vector_store/
