@@ -63,7 +63,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-# lib/  # 주석 처리: open-webui/src/lib 폴더를 포함하기 위해
 lib64/
 parts/
 sdist/
@@ -234,7 +233,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # Open WebUI generated files (자동 생성 파일만 제외)
-open-webui/static/pyodide/
+# Pyodide distribution (공식 Open WebUI와 동일한 정책)
+open-webui/static/pyodide/*
+!open-webui/static/pyodide/pyodide-lock.json
 open-webui/backend/open_webui/static/
 
 # Vector store and documents (comment out to include sample documents)
