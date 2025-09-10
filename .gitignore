@@ -219,6 +219,7 @@ pyrightconfig.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+*.db
 
 # Open WebUI data (사용자 데이터만 제외)
 open-webui/backend/data/
