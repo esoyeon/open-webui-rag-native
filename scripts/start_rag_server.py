@@ -52,6 +52,12 @@ def check_environment():
 
 def start_server():
     """RAG 서버 시작"""
+    # 디버깅 정보 출력
+    logger.info(f"현재 작업 디렉토리: {os.getcwd()}")
+    logger.info(f"프로젝트 루트: {project_root}")
+    logger.info(f"web_api_server.py 경로: {project_root / 'web_api_server.py'}")
+    logger.info(f"web_api_server.py 존재 여부: {(project_root / 'web_api_server.py').exists()}")
+    
     # 환경 설정 확인
     if not check_environment():
         return 1

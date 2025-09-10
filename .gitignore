@@ -63,7 +63,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -219,12 +218,12 @@ pyrightconfig.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+*.db
 
-# Open WebUI data
-data/webui/
+# Open WebUI data (사용자 데이터만 제외)
 open-webui/backend/data/
 
-# Node.js / Frontend build
+# Node.js / Frontend build (빌드 결과물만 제외)
 node_modules/
 open-webui/node_modules/
 open-webui/build/
@@ -233,8 +232,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Open WebUI generated files
-open-webui/static/pyodide/
+# Open WebUI generated files (자동 생성 파일만 제외)
+# Pyodide distribution (공식 Open WebUI와 동일한 정책)
+open-webui/static/pyodide/*
+!open-webui/static/pyodide/pyodide-lock.json
 open-webui/backend/open_webui/static/
 
 # Vector store and documents (comment out to include sample documents)

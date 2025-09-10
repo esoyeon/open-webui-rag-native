@@ -1,8 +1,17 @@
-# Open WebUI + Adaptive RAG Integration (Docker-Free)
+# Open WebUI + Adaptive RAG Integration (Native)
 
 **도커 없이 Open WebUI와 Adaptive RAG 시스템을 연동하는 프로젝트**
 
-이 프로젝트는 Open WebUI를 활용하여 자체 구현한 RAG(Retrieval-Augmented Generation) 시스템과 연동하는 방법을 학습할 수 있도록 구성되었습니다. 도커 없이 직접 환경을 구성하여 시스템의 동작 원리를 더 깊이 이해할 수 있습니다.
+이 프로젝트는 Open WebUI를 활용하여 자체 구현한 RAG(Retrieval-Augmented Generation) 시스템과 연동하는 방법을 학습할 수 있도록 구성되었습니다. Docker 없이 직접 환경을 구성하여 시스템의 동작 원리를 더 깊이 이해할 수 있습니다.
+
+## 🎯 프로젝트 목적
+
+- **학습 중심**: RAG 시스템의 내부 동작 원리를 직접 체험
+- **커스터마이징**: 모든 컴포넌트를 자유롭게 수정하고 확장
+- **디버깅**: 문제 발생 시 쉽게 원인을 파악하고 해결
+- **실무 경험**: 실제 프로덕션 환경과 유사한 설정 경험
+
+> **🔗 관련 프로젝트**: [Docker 버전](https://github.com/esoyeon/open-webui-rag-docker) - Docker를 사용한 간편한 설정
 
 ## 🚀 빠른 시작 가이드 (Quick Start)
 
@@ -36,11 +45,13 @@ python scripts/index_documents.py
 
 ## 📋 주요 특징
 
-- 🚫 **도커 없이 실행**: 복잡한 컨테이너 설정 없이 직접 환경 구성
+- 🚫 **Native 환경**: 복잡한 컨테이너 설정 없이 직접 환경 구성
 - 🔗 **Open WebUI 연동**: 자체 RAG API를 Open WebUI에 연결
 - 📚 **Adaptive RAG**: LangGraph 기반의 지능형 문서 검색
 - 📖 **교육용 설계**: 학습자가 직접 환경을 구성하며 시스템 동작 원리 이해
 - 🌐 **크로스 플랫폼**: Windows, macOS, Linux에서 모두 실행 가능
+- ⚡ **빠른 시작**: Docker 설치 없이 바로 시작 가능
+- 🔧 **완전한 제어**: 모든 컴포넌트를 직접 관리하고 커스터마이징 가능
 
 ## 🛠 시스템 요구사항
 
@@ -65,8 +76,8 @@ Python 3.9 이상이 설치되어 있어야 합니다. 없다면 [python.org](ht
 ### 2단계: 프로젝트 다운로드
 
 ```bash
-git clone <repository-url>
-cd llm_chatbot_window
+git clone https://github.com/esoyeon/open-webui-rag-native.git
+cd open-webui-rag-native
 ```
 
 ### 3단계: 가상환경 생성 및 활성화
@@ -306,7 +317,7 @@ python scripts/start_webui.py
 ## 📁 프로젝트 구조
 
 ```
-llm_chatbot_window/
+open-webui-rag-native/
 ├── 📘 Python 백엔드 영역
 │   ├── adaptive_rag/          # RAG 핵심 로직 (Python)
 │   ├── document_processing/   # 문서 처리 모듈 (Python)
@@ -490,6 +501,20 @@ curl http://localhost:8000/health
 - **멀티모달 RAG**: 이미지, 음성 포함 문서 처리
 - **사용자별 문서 관리**: 개인화된 지식베이스
 - **실시간 문서 업데이트**: 문서 변경 시 자동 재인덱싱
+
+## 🆚 Native vs Docker 비교
+
+| 구분 | Native 버전 (현재) | Docker 버전 |
+|------|-------------------|-------------|
+| **설정 복잡도** | ⭐⭐⭐⭐ (복잡) | ⭐⭐ (간단) |
+| **환경 일관성** | ⭐⭐⭐ (좋음) | ⭐⭐⭐⭐⭐ (완벽) |
+| **학습 효과** | ⭐⭐⭐⭐⭐ (높음) | ⭐⭐ (낮음) |
+| **운영 환경** | ⭐⭐⭐ (좋음) | ⭐⭐⭐⭐⭐ (완벽) |
+| **디버깅** | ⭐⭐⭐⭐ (쉬움) | ⭐⭐ (어려움) |
+| **커스터마이징** | ⭐⭐⭐⭐⭐ (쉬움) | ⭐⭐⭐ (보통) |
+
+**🔧 Native 버전 (현재)**: 시스템 동작 원리를 학습하고 커스터마이징이 필요한 경우
+**🐳 Docker 버전**: 빠른 시작과 안정적인 운영이 필요한 경우
 
 ## 📚 추가 학습 자료
 
