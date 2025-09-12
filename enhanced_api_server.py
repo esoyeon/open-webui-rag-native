@@ -337,14 +337,11 @@ async def chat_completions(request: ChatRequest, http_request: Request):
     # 세션 ID 결정: 요청에 없으면 '대화의 첫 사용자 메시지'로부터 안정적으로 도출
     def derive_session_id_from_messages(messages: List[ChatMessage]) -> str:
         import hashlib, time as _t
-        base = "".join([
-            (m.content if m.role == "user" else "")
-            for m in messages[:3]
-        ])
+        # 안정적 세션 키: 첫 1~3개 사용자 메시지의 콘텐츠 해시 (시간 요소 제거)
+        base = "".join((m.content or "") for m in messages if m.role == "user")[:1000]
         if not base:
             return generate_session_id(http_request)
-        stamp = str(int(_t.time() / 3600))
-        return hashlib.md5((base + stamp).encode()).hexdigest()[:16]
+        return hashlib.md5(base.encode()).hexdigest()[:16]
 
     session_id = request.session_id or derive_session_id_from_messages(request.messages)
     
@@ -377,6 +374,16 @@ async def chat_completions(request: ChatRequest, http_request: Request):
             except ValueError:
                 logger.warning(f"Invalid search type: {request.search_type}")
         
+        # 세션 동기화: 클라이언트가 보낸 전체 messages를 세션 저장소에 반영
+        try:
+            app_state["session_manager"].sync_messages(
+                session_id=session_id,
+                messages=[m.dict() for m in request.messages],
+                include_system=True,
+            )
+        except Exception:
+            pass
+
         # RAG 처리
         rag_response = await app_state["rag_engine"].process_question(
             question=user_message,

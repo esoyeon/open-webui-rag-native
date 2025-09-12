@@ -162,7 +162,7 @@ class EnhancedPipe:
             return self._handle_uninitialized_state(user_message)
 
         try:
-            # 세션 ID 생성
+            # 세션 ID 생성 (동일 대화면 새 탭에서도 동일 키)
             session_id = self._generate_session_id(messages)
             
             # 검색 타입/오퍼레이션 추론 (body에서 힌트 확인)
@@ -179,21 +179,30 @@ class EnhancedPipe:
                 if isinstance(op, str) and op.strip():
                     force_operation = op.strip().lower()
 
-            # 비동기 RAG 처리를 동기화해서 실행
+            # 비동기 RAG 처리를 동기화해서 실행 (실행 전 세션 동기화)
             try:
                 # asyncio 이벤트 루프 확인
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     # 이미 실행 중인 루프에서는 run_until_complete 사용 불가
                     # 대신 동기적으로 처리하거나 백그라운드 태스크 사용
+                    # 세션 동기화
+                    try:
+                        get_session_manager().sync_messages(session_id, messages)
+                    except Exception:
+                        pass
                     result = self._process_sync(user_message, session_id, search_type)
                 else:
                     # 새 이벤트 루프에서 실행
-                    result = asyncio.run(
-                        self.rag_engine.process_question(
+                    async def _run():
+                        try:
+                            get_session_manager().sync_messages(session_id, messages)
+                        except Exception:
+                            pass
+                        return await self.rag_engine.process_question(
                             user_message, session_id, search_type, force_operation
                         )
-                    )
+                    result = asyncio.run(_run())
             except RuntimeError:
                 # 이벤트 루프 문제 시 동기적으로 처리
                 result = self._process_sync(user_message, session_id, search_type)

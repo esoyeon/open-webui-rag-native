@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
+import json
 
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -154,6 +155,9 @@ class OptimizedRAGEngine:
 **대화 맥락:**
 {conversation_context}
 
+**이전 답변(있다면):**
+{previous_answer}
+
 **검색된 정보:**
 {context}
 
@@ -191,15 +195,7 @@ class OptimizedRAGEngine:
         if any(k in q for k in realtime_keywords):
             return SearchType.WEB
 
-        # 3) 소비자 제품/가격/출시 관련 키워드 → 웹
-        product_price_keywords = [
-            '아이폰', 'iphone', '갤럭시', 'galaxy', '맥북', 'macbook', '애플', 'apple', '삼성', 'samsung',
-            '가격', 'price', '출시', '발표', '발매', '런칭', 'official', 'event', '언제', '얼마'
-        ]
-        if any(k in q for k in product_price_keywords):
-            return SearchType.WEB
-
-        # 4) AI/정책 관련 (내부 문서 적합)
+        # 3) AI/정책 관련 (내부 문서 적합)
         vector_keywords = [
             'ai', '인공지능', '정책', 'policy', '산업', 'industry',
             '기술', 'technology', '전략', 'strategy', '투자', 'investment',
@@ -210,6 +206,105 @@ class OptimizedRAGEngine:
 
         # 기본값: 하이브리드로 두 소스 모두 시도
         return SearchType.HYBRID
+
+    def _bias_query_with_session_meta(self, question: str, session_id: str) -> str:
+        """세션 메타(last_entities)를 활용해 쿼리를 살짝 보강"""
+        try:
+            meta = self.session_manager.get_session_meta(session_id)
+            entities = meta.get('last_entities', {}) if isinstance(meta, dict) else {}
+            keywords = entities.get('keywords', []) if isinstance(entities, dict) else []
+            if keywords:
+                # 중복 방지
+                to_add = [kw for kw in keywords if kw.lower() not in question.lower()]
+                if to_add:
+                    return question + " (관련 키워드: " + ", ".join(to_add[:5]) + ")"
+        except Exception:
+            pass
+        return question
+
+    def _expand_followup_query(self, question: str, session_id: str) -> str:
+        """짧고 모호한 후속 질의를 세션 메타와 직전 답변으로 확장
+        예: "한국가격은?" → "Galaxy S25 Ultra price in KRW, South Korea"
+        """
+        q = question.strip()
+        # 길이가 짧거나 지시어 위주일 때만 확장 시도
+        if len(q) > 20 and not any(k in q.lower() for k in ['krw', '원', '한국']):
+            return question
+
+        meta = self.session_manager.get_session_meta(session_id)
+        entities = meta.get('last_entities', {}) if isinstance(meta, dict) else {}
+        keywords = entities.get('keywords', []) if isinstance(entities, dict) else []
+        product_hint = ''
+        if keywords:
+            # 제품/모델 관련 키워드만 추림
+            prios = ['s25 ultra', 's25', 'ultra', 'galaxy', '갤럭시']
+            ordered = [k for p in prios for k in keywords if p in k.lower()]
+            product_hint = ordered[0] if ordered else keywords[0]
+        if not product_hint:
+            # 직전 답변에서 간단 추출 (영문 모델 포함 시)
+            recent = self.session_manager.get_messages(session_id, limit=4) or []
+            prev_ans = next((m.content for m in reversed(recent) if m.role.value == 'assistant'), '')
+            for cand in ['Galaxy S25 Ultra', 'Galaxy S25', 'S25 Ultra', 'S25']:
+                if cand.lower() in prev_ans.lower():
+                    product_hint = cand
+                    break
+
+        base = product_hint or ''
+        # 통화/지역 힌트
+        suffix = ' price in KRW, South Korea'
+        # 기존 질문도 포함해 의미 보존
+        if base:
+            return f"{base}{suffix} ({question})"
+        else:
+            return f"{question} (in KRW, South Korea)"
+
+    def _llm_route_and_rewrite(self, question: str, session_id: str, default: SearchType) -> Tuple[SearchType, str]:
+        """LLM 기반 라우팅/질의 재작성 (일반화된 방식)
+        Returns: (search_type, expanded_query)
+        """
+        try:
+            meta = self.session_manager.get_session_meta(session_id)
+            entities = meta.get('last_entities', {}) if isinstance(meta, dict) else {}
+            prev_msgs = self.session_manager.get_messages(session_id, limit=4) or []
+            prev_answer = next((m.content for m in reversed(prev_msgs) if m.role.value == 'assistant'), "")
+
+            prompt = ChatPromptTemplate.from_template(
+                """
+                You are a routing and query rewriting assistant.
+                Given a user question, previous answer (optional), and lightweight entities (optional),
+                decide the best search_type among: web | vector | hybrid.
+                Then rewrite the user question into a fully self-contained query that disambiguates vague pronouns and context.
+
+                Constraints:
+                - Prefer vector for questions clearly answered by internal documents (policy/AI/2024/etc.)
+                - Prefer web for real-time/consumer pricing/location/currency/availability and unknown years
+                - Use hybrid if uncertain.
+                - Output strict JSON only with keys: search_type, expanded_query
+
+                User question: {question}
+                Previous answer: {prev_answer}
+                Entities (JSON): {entities}
+                """
+            )
+
+            messages = prompt.format_messages(
+                question=question,
+                prev_answer=prev_answer,
+                entities=json.dumps(entities, ensure_ascii=False)
+            )
+            raw = self.llm.invoke(messages).content
+            data = json.loads(raw)
+            st = str(data.get('search_type', default.value)).lower()
+            if st not in ['web', 'vector', 'hybrid']:
+                st = default.value
+            expanded = data.get('expanded_query', question) or question
+            return SearchType(st), expanded
+        except Exception:
+            # 폴백: 기존 바이어스 + 확장
+            biased = self._bias_query_with_session_meta(question, session_id)
+            if len(question.strip()) <= 10:
+                biased = self._expand_followup_query(biased, session_id)
+            return default, biased
     
     def _get_cached_embedding(self, text: str) -> Optional[np.ndarray]:
         """캐시된 임베딩 조회 또는 생성"""
@@ -231,7 +326,7 @@ class OptimizedRAGEngine:
         if not self.vector_store:
             logger.warning("Vector store not available")
             return []
-        
+
         # 캐시 확인
         cached_results = self.cache.get_cached_search_results(question, "vector")
         if cached_results:
@@ -295,6 +390,29 @@ class OptimizedRAGEngine:
         except Exception as e:
             logger.error(f"Web search failed: {e}")
             return []
+
+    def _extract_entities_simple(self, text: str) -> Dict[str, Any]:
+        """경량 엔티티 추출(규칙 기반): 제품/모델/가격/통화"""
+        entities: Dict[str, Any] = {}
+        try:
+            # 가격/통화
+            import re
+            price_usd = re.findall(r"\$\s?([0-9][0-9,]*\.?[0-9]*)", text)
+            price_krw = re.findall(r"([0-9][0-9,]*)\s?원", text)
+            if price_usd:
+                entities['price_usd'] = price_usd
+            if price_krw:
+                entities['price_krw'] = price_krw
+            # 제품 키워드
+            keywords = []
+            for kw in ['galaxy', '갤럭시', 'iphone', '아이폰', 'ultra', '울트라', 'plus', '플러스', 's25', 's25 ultra', 's25 plus']:
+                if kw.lower() in text.lower():
+                    keywords.append(kw)
+            if keywords:
+                entities['keywords'] = list(set(keywords))
+        except Exception:
+            pass
+        return entities
     
     def _parallel_search(self, question: str, search_types: List[SearchType]) -> List[SearchResult]:
         """병렬 검색 실행"""
@@ -389,40 +507,54 @@ class OptimizedRAGEngine:
             else:
                 is_contextual = self._is_contextual_operation(question)
             
-            # 3. 검색 타입 결정 (컨텍스트 작업이면 검색 생략)
-            search_type = None
-            if not is_contextual:
-                search_type = force_search_type or self._simple_route_query(question)
-                logger.info(f"🔍 Search type: {search_type}")
+            # 3. 검색 타입 결정 (컨텍스트 작업이면 기본값 VECTOR로 설정하여 None 방지)
+            if is_contextual:
+                search_type = SearchType.VECTOR
+                expanded_query = question
+            else:
+                # 1차 규칙 라우팅 후 LLM 기반 재확인/재작성으로 일반화
+                initial = force_search_type or self._simple_route_query(question)
+                search_type, expanded_query = self._llm_route_and_rewrite(question, session_id, initial)
+            logger.info(f"🔍 Search type: {search_type}; expanded={expanded_query != question}")
             
             # 3. 대화 컨텍스트 조회 (최근성 제한 포함)
             conversation_context, conv_tokens = self.session_manager.get_conversation_context(
-                session_id, max_tokens=1000
+                session_id, max_tokens=1000, last_messages_limit=12
             )
             
             # 4. 검색 수행 (컨텍스트 작업이면 검색 생략하고 대화 컨텍스트만 사용)
             if is_contextual:
-                # 가드3: 최근 assistant 메시지가 없다면 검색 기반으로 폴백
+                # 가드3: 최근 assistant 메시지가 없다면 '명시적 안내 + 컨텍스트 없이 처리'로 폴백해 무한 대기 방지
                 recent_msgs = self.session_manager.get_messages(session_id, limit=4) or []
                 has_recent_assistant = any(m.role.value == 'assistant' for m in recent_msgs)
 
                 if not has_recent_assistant and not force_operation:
-                    logger.info("ℹ️ No recent assistant message; falling back to retrieval for contextual request")
-                    is_contextual = False
+                    logger.info("ℹ️ No recent assistant message; proceeding without retrieval and with user guidance")
+                    search_results = []
+                    # 질문 앞에 안내를 덧붙여 LLM이 상황을 명확히 알도록 함
+                    question = (
+                        "이전 대화 맥락이 없습니다. 사용자가 제공한 현재 문장만을 대상으로 작업하세요.\n\n" + question
+                    )
                 else:
                     search_results = []
             else:
+                # LLM 재작성 결과 우선 사용, 없으면 세션 엔티티 보강/짧은 후속 확장
+                q_use = expanded_query or question
+                if q_use == question:
+                    q_use = self._bias_query_with_session_meta(q_use, session_id)
+                    if len(question.strip()) <= 10:
+                        q_use = self._expand_followup_query(q_use, session_id)
                 if search_type == SearchType.HYBRID:
-                    search_results = self._parallel_search(question, [SearchType.VECTOR, SearchType.WEB])
+                    search_results = self._parallel_search(q_use, [SearchType.VECTOR, SearchType.WEB])
                 elif search_type == SearchType.VECTOR:
-                    search_results = self._vector_search(question)
+                    search_results = self._vector_search(q_use)
                     # 벡터 결과가 없으면 자동으로 웹 검색으로 폴백
                     if not search_results and self.web_search_tool:
                         logger.info("ℹ️ No vector results, falling back to web search")
-                        search_results = self._web_search(question)
+                        search_results = self._web_search(q_use)
                         search_type = SearchType.WEB
                 elif search_type == SearchType.WEB:
-                    search_results = self._web_search(question)
+                    search_results = self._web_search(q_use)
                 else:
                     search_results = []
             
@@ -450,13 +582,40 @@ class OptimizedRAGEngine:
                     cached=True
                 )
             
-            # 7. 새 답변 생성
-            answer = await self._generate_answer_async(
-                question, context, conversation_context
-            )
+            # 이전 assistant 답변(있다면) 추출해 후속 질문 품질 개선
+            recent_msgs_for_prev = self.session_manager.get_messages(session_id, limit=4) or []
+            prev_assistant = next((m.content for m in reversed(recent_msgs_for_prev) if m.role.value == 'assistant'), "")
+
+            # 7. 새 답변 생성 (타임아웃 가드로 무한 대기 방지)
+            try:
+                answer = await asyncio.wait_for(
+                    self._generate_answer_async(
+                        question, context, conversation_context, prev_assistant
+                    ), timeout=30
+                )
+            except asyncio.TimeoutError:
+                logger.error("LLM generation timeout; returning fallback message")
+                answer = "요청이 예상보다 오래 걸립니다. 잠시 후 다시 시도해 주세요."
             
-            # 8. 답변 캐싱
+            # 8. 답변 캐싱 및 세션 메타 업데이트
             self.cache.cache_answer(question, answer, context_hash)
+            try:
+                # 간단 엔티티 추출 및 소스 보존
+                entities = self._extract_entities_simple(answer)
+                sources_compact = [
+                    {
+                        'title': s.title,
+                        'source': s.source,
+                        'score': s.score
+                    } for s in (search_results[:3] if search_results else [])
+                ]
+                self.session_manager.set_session_meta(session_id, {
+                    'last_answer': answer,
+                    'last_entities': entities,
+                    'last_sources': sources_compact
+                })
+            except Exception as _:
+                pass
             
             # 9. 세션에 답변 추가
             self.session_manager.add_message(
@@ -493,7 +652,8 @@ class OptimizedRAGEngine:
         self, 
         question: str, 
         context: str, 
-        conversation_context: str
+        conversation_context: str,
+        previous_answer: str
     ) -> str:
         """비동기 답변 생성"""
         try:
@@ -505,7 +665,8 @@ class OptimizedRAGEngine:
                 self._generate_answer_sync,
                 question,
                 context,
-                conversation_context
+                conversation_context,
+                previous_answer
             )
             
             return answer
@@ -518,14 +679,16 @@ class OptimizedRAGEngine:
         self, 
         question: str, 
         context: str, 
-        conversation_context: str
+        conversation_context: str,
+        previous_answer: str
     ) -> str:
         """동기 답변 생성"""
         try:
             answer = self.rag_chain.invoke({
                 "question": question,
                 "context": context,
-                "conversation_context": conversation_context
+                "conversation_context": conversation_context,
+                "previous_answer": previous_answer
             })
             return answer
             

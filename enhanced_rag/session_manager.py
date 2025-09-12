@@ -31,14 +31,25 @@ class ChatMessage:
     metadata: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        # Enum은 JSON 직렬화가 불가하므로 문자열 값으로 저장
+        return {
+            "role": self.role.value if isinstance(self.role, MessageRole) else str(self.role),
+            "content": self.content,
+            "timestamp": self.timestamp,
+            "metadata": self.metadata,
+        }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ChatMessage':
+        role_val = data.get('role', 'user')
+        try:
+            role_enum = role_val if isinstance(role_val, MessageRole) else MessageRole(str(role_val))
+        except Exception:
+            role_enum = MessageRole.USER
         return cls(
-            role=MessageRole(data['role']),
-            content=data['content'],
-            timestamp=data['timestamp'],
+            role=role_enum,
+            content=data.get('content', ''),
+            timestamp=float(data.get('timestamp', 0)),
             metadata=data.get('metadata')
         )
 
@@ -90,6 +101,11 @@ class SessionManager:
         self.session_ttl = session_ttl
         self.cleanup_interval = cleanup_interval
         self.last_cleanup = time.time()
+
+        # 캐시 장애 시 임시 메모리 폴백 (프로세스 한정)
+        self._ephemeral_store: Dict[str, List[ChatMessage]] = {}
+        self._ephemeral_info: Dict[str, SessionInfo] = {}
+        self._ephemeral_meta: Dict[str, Dict[str, Any]] = {}
     
     def _session_key(self, session_id: str) -> str:
         """세션 키 생성"""
@@ -98,6 +114,10 @@ class SessionManager:
     def _session_info_key(self, session_id: str) -> str:
         """세션 정보 키 생성"""
         return f"session:info:{session_id}"
+
+    def _session_meta_key(self, session_id: str) -> str:
+        """세션 메타(경량 상태) 키 생성"""
+        return f"session:meta:{session_id}"
     
     def _should_cleanup(self) -> bool:
         """정리 작업이 필요한지 확인"""
@@ -170,11 +190,14 @@ class SessionManager:
             
             # 메시지 저장
             messages_data = [msg.to_dict() for msg in messages]
-            self.cache.set(
+            ok = self.cache.set(
                 self._session_key(session_id),
                 messages_data,
                 self.session_ttl
             )
+            if not ok:
+                # 캐시 장애 시 임시 저장
+                self._ephemeral_store[session_id] = [ChatMessage.from_dict(m) for m in messages_data]
             
             # 세션 정보 업데이트
             session_info.last_activity = time.time()
@@ -184,11 +207,13 @@ class SessionManager:
             estimated_tokens = len(content.split()) * 1.3  # 평균 토큰 비율
             session_info.total_tokens += int(estimated_tokens)
             
-            self.cache.set(
+            ok2 = self.cache.set(
                 self._session_info_key(session_id),
                 session_info.to_dict(),
                 self.session_ttl
             )
+            if not ok2:
+                self._ephemeral_info[session_id] = session_info
             
             # 주기적 정리 작업
             if self._should_cleanup():
@@ -210,7 +235,10 @@ class SessionManager:
         try:
             data = self.cache.get(self._session_key(session_id))
             if not data:
-                return None
+                # 캐시 미사용/장애 시 임시 저장소 폴백
+                data = [m.to_dict() for m in self._ephemeral_store.get(session_id, [])]
+                if not data:
+                    return None
             
             messages = [ChatMessage.from_dict(msg_data) for msg_data in data]
             
@@ -218,7 +246,7 @@ class SessionManager:
             if not include_system:
                 messages = [m for m in messages if m.role != MessageRole.SYSTEM]
             
-            # 제한 적용
+            # 제한 적용 (최근 메시지 우선)
             if limit:
                 messages = messages[-limit:]
             
@@ -231,7 +259,8 @@ class SessionManager:
     def get_conversation_context(
         self, 
         session_id: str, 
-        max_tokens: int = 4000
+        max_tokens: int = 4000,
+        last_messages_limit: int = 12
     ) -> Tuple[str, int]:
         """
         대화 컨텍스트를 문자열로 반환 (토큰 제한 고려)
@@ -242,6 +271,10 @@ class SessionManager:
         messages = self.get_messages(session_id)
         if not messages:
             return "", 0
+        
+        # 너무 긴 대화는 최근 N개만 사용하여 효율적으로 컨텍스트 구성
+        if last_messages_limit and len(messages) > last_messages_limit:
+            messages = messages[-last_messages_limit:]
         
         context_parts = []
         total_tokens = 0
@@ -266,6 +299,9 @@ class SessionManager:
             
             if result1 or result2:
                 logger.info(f"Deleted session: {session_id}")
+                # 임시 저장소도 정리
+                self._ephemeral_store.pop(session_id, None)
+                self._ephemeral_info.pop(session_id, None)
                 return True
             return False
             
@@ -351,6 +387,71 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Failed to get session stats: {e}")
             return {}
+
+    # ------- 세션 메타데이터 (경량 상태 저장소) -------
+    def get_session_meta(self, session_id: str) -> Dict[str, Any]:
+        """세션 메타데이터 조회 (last_answer/last_sources/last_entities 등)"""
+        try:
+            data = self.cache.get(self._session_meta_key(session_id))
+            if isinstance(data, dict):
+                return data
+            # 캐시 미사용 시 임시 저장소 폴백
+            return dict(self._ephemeral_meta.get(session_id, {}))
+        except Exception as e:
+            logger.error(f"Failed to get session meta: {e}")
+            return dict(self._ephemeral_meta.get(session_id, {}))
+
+    def set_session_meta(self, session_id: str, meta: Dict[str, Any]) -> bool:
+        """세션 메타데이터 병합 저장"""
+        try:
+            current = self.get_session_meta(session_id)
+            current.update(meta or {})
+            ok = self.cache.set(self._session_meta_key(session_id), current, self.session_ttl)
+            if not ok:
+                self._ephemeral_meta[session_id] = current
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set session meta: {e}")
+            self._ephemeral_meta[session_id] = meta or {}
+            return False
+
+    def sync_messages(self, session_id: str, messages: List[Dict[str, Any]], include_system: bool = True) -> bool:
+        """외부에서 전달된 전체 메시지 히스토리를 세션에 동기화
+        - Open WebUI나 API 요청의 messages 배열을 그대로 반영
+        - 기존 세션 내용을 교체하여 일관성 유지
+        """
+        try:
+            chat_messages: List[ChatMessage] = []
+            for msg in messages:
+                role = str(msg.get('role', 'user')).lower()
+                content = msg.get('content', '')
+                if role == 'system' and not include_system:
+                    continue
+                try:
+                    role_enum = MessageRole(role)
+                except Exception:
+                    role_enum = MessageRole.USER
+                chat_messages.append(ChatMessage(role=role_enum, content=content, timestamp=time.time(), metadata={}))
+
+            # 시스템 메시지 보존 + LRU 트림 적용
+            if len(chat_messages) > self.max_messages_per_session:
+                system_msgs = [m for m in chat_messages if m.role == MessageRole.SYSTEM]
+                others = [m for m in chat_messages if m.role != MessageRole.SYSTEM]
+                keep = self.max_messages_per_session - len(system_msgs)
+                others = others[-keep:] if keep > 0 else []
+                chat_messages = system_msgs + others
+
+            data = [m.to_dict() for m in chat_messages]
+            ok = self.cache.set(self._session_key(session_id), data, self.session_ttl)
+            info = SessionInfo(session_id=session_id, created_at=time.time(), last_activity=time.time(), message_count=len(chat_messages))
+            ok2 = self.cache.set(self._session_info_key(session_id), info.to_dict(), self.session_ttl)
+            if not ok or not ok2:
+                self._ephemeral_store[session_id] = chat_messages
+                self._ephemeral_info[session_id] = info
+            return True
+        except Exception as e:
+            logger.error(f"Failed to sync messages for session {session_id}: {e}")
+            return False
 
 
 # Singleton pattern for global session manager
