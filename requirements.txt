@@ -45,8 +45,10 @@ peewee-migrate==1.12.2
 psycopg2-binary>=2.9.10
 pgvector==0.4.0
 PyMySQL==1.1.1
-redis
+redis>=5.0.0
+rq>=1.15.0  # Redis Queue for background tasks
 pymongo
+nest-asyncio>=1.5.0  # For nested asyncio event loops
 
 # Logging & runtime utils
 loguru==0.7.3

@@ -15,6 +15,16 @@
 
 ## 🚀 빠른 시작 가이드 (Quick Start)
 
+### 모드 선택: 기본 vs Enhanced
+
+- 기본 모드(학습/기본 RAG): 기존 문서 기반 RAG + Open WebUI 연동 흐름 그대로 사용
+  - 장점: 단순하고 이해하기 쉬움, 의존성 최소
+  - 실행: 기존 스크립트 유지 (`scripts/start_rag_server.py`, `scripts/start_webui.py`)
+- Enhanced 모드(실무형/고성능 RAG): 캐싱·세션·백그라운드 큐·웹검색 라우팅 추가로 3–5배 성능 향상
+  - 장점: 빠른 응답, 동시 요청, 세션 메모리, 웹 검색 라우팅·폴백
+  - 실행: 일체형 스크립트 (`scripts/start_enhanced_system.py`) 또는 `enhanced_api_server.py`
+  - 상세 가이드: `ENHANCED_RAG_README.md`
+
 **전제 조건**: Python 3.9+ 와 Node.js 18+ 가 설치되어 있어야 합니다.
 
 ```bash
@@ -36,9 +46,15 @@ python scripts/build_frontend.py
 # 5. 문서 인덱싱
 python scripts/index_documents.py
 
-# 6. 서버 실행 (2개 터미널 필요)
+# 6. 서버 실행 (모드 중 하나를 선택)
+
+# [기본 모드]
 # 터미널1: python scripts/start_rag_server.py
 # 터미널2: python scripts/start_webui.py
+
+# [Enhanced 모드]
+# 일체형: ./venv/bin/python scripts/start_enhanced_system.py
+# 또는    ./venv/bin/python enhanced_api_server.py  (API 서버만)
 
 # 7. 브라우저에서 http://localhost:8080 접속
 ```
@@ -284,6 +300,19 @@ python scripts/start_webui.py
 📍 주소: http://127.0.0.1:8080
 ```
 
+### (선택) Enhanced 모드: 일체형 시작
+
+```bash
+# Redis 설치/실행 후(예: macOS는 brew install redis && brew services start redis)
+./venv/bin/python scripts/start_enhanced_system.py
+# 또는 API 서버만 별도 실행
+./venv/bin/python enhanced_api_server.py
+```
+
+Open WebUI와 연결 방법 (둘 중 택1)
+- 방법1: OpenAI 호환 설정에서 API Base를 `http://localhost:8000`, 모델을 `enhanced-rag`로 지정
+- 방법2: Pipelines에 `pipelines/enhanced_rag_pipeline.py`가 구동된 서버를 등록
+
 ## 🌐 사용 방법
 
 ### 웹 인터페이스 접속
@@ -324,6 +353,7 @@ python scripts/start_webui.py
 open-webui-rag-native/
 ├── 📘 Python 백엔드 영역
 │   ├── adaptive_rag/          # RAG 핵심 로직 (Python)
+│   ├── enhanced_rag/          # 고성능 RAG(캐시/세션/큐/웹검색 라우팅)
 │   ├── document_processing/   # 문서 처리 모듈 (Python)
 │   ├── pipelines/            # RAG 파이프라인 (Python)
 │   ├── scripts/              # 실행 스크립트들 (Python)
@@ -331,6 +361,8 @@ open-webui-rag-native/
 │   │   ├── build_frontend.py    # 프론트엔드 빌드 실행
 │   │   ├── start_rag_server.py  # RAG 서버 시작
 │   │   └── start_webui.py      # WebUI 서버 시작
+│   │   ├── start_enhanced_system.py  # Enhanced 일체형(Redis/RQ/API)
+│   │   └── test_enhanced_rag.py      # 기능/캐시/세션/동시성/성능 테스트
 │   ├── venv/                 # Python 가상환경 (생성 후)
 │   └── requirements.txt      # Python 패키지 목록
 │
@@ -350,6 +382,11 @@ open-webui-rag-native/
 └── ⚙️ 설정 파일
     ├── .env                  # 환경 변수 (직접 생성)
     └── .gitignore           # Git 제외 목록
+
+### 선택적/고급(Advanced) 구성요소 정리
+- `enhanced_rag/`, `enhanced_api_server.py`, `scripts/start_enhanced_system.py`, `scripts/test_enhanced_rag.py`, `pipelines/enhanced_rag_pipeline.py`
+  - 고성능 옵션(캐시/세션/큐/웹검색)을 사용하려는 경우에만 필요
+  - 학습/기본 모드만 사용할 경우 유지해도 무방하며, 사용하지 않으면 기본 동작에 영향 없음
 ```
 
 ## 🔧 구성 요소
@@ -366,6 +403,14 @@ open-webui-rag-native/
 - 실시간 채팅 인터페이스
 - 사용자 관리 시스템
 
+### Enhanced RAG 시스템(옵션)
+- 캐싱: 임베딩/검색결과/답변을 Redis에 저장해 반복 질문 가속
+- 세션 메모리: 사용자별 대화 히스토리 유지(LRU 트림, 토큰 추정)
+- 동시 요청: RQ(레디스 큐)로 백그라운드 워커 처리
+- 라우팅: 최신/가격/제품/연도(≥2025)는 웹 검색, 그 외는 문서(벡터) 우선, 필요 시 자동 폴백
+- 엔드포인트: 기존 OpenAI 호환 유지(`/v1/chat/completions`), `/health`, `/admin/*`
+- 자세한 내용: `ENHANCED_RAG_README.md`
+
 ## 💾 데이터 관리
 
 Open WebUI는 사용자 데이터를 SQLite 데이터베이스에 저장합니다. 자세한 내용은 [기술 가이드](TECHNICAL_GUIDE.md#데이터-저장소-open-webui)를 참조하세요.
@@ -378,6 +423,10 @@ RAG 서버가 실행되면 다음 엔드포인트를 사용할 수 있습니다:
 - `GET /health`: 서버 상태 확인
 - `POST /v1/chat/completions`: OpenAI 호환 채팅 API
 - `GET /docs`: API 문서 (Swagger UI)
+
+Enhanced 모드 추가 엔드포인트
+- `/health`: 상세 헬스체크(캐시/세션/큐/엔진 상태)
+- `/admin/sessions`, `/admin/cache/clear`, `/admin/tasks`: 운영/관리용
 
 ## ⚠️ 문제 해결
 
@@ -438,6 +487,13 @@ RAG 서버가 실행되면 다음 엔드포인트를 사용할 수 있습니다:
 - Open WebUI 의존성이 설치되었는지 확인
 
 **Q: 웹 페이지에 접속이 안 돼요**
+**Q: 웹 검색이 동작하지 않아요**
+- `.env` 또는 셸 환경에 `TAVILY_API_KEY` 설정 필요 (Enhanced 모드)
+- 연도/최신/가격/제품 키워드가 포함되었는지 확인, 필요 시 `search_type: "web"` 강제 지정
+
+**Q: Redis가 없어도 되나요?**
+- 네. Enhanced 모드에서 캐시/큐 기능이 비활성화될 뿐 서버는 동작합니다. 성능은 저하될 수 있습니다.
+
 - 서버 시작 메시지에서 올바른 주소 확인
 - 방화벽이 포트를 차단하지 않는지 확인
 - 다른 브라우저로 시도해보기
