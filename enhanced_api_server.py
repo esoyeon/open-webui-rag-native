@@ -150,6 +150,8 @@ app.add_middleware(
 )
 
 
+# RAG 엔진 초기화 위치 (학생 확장 포인트)
+# - 여기에서 OptimizedRAGEngine 대신 본인의 LangGraph/엔진을 주입하면 됩니다.
 async def initialize_rag_engine():
     """RAG 엔진 초기화"""
     try:
@@ -160,7 +162,7 @@ async def initialize_rag_engine():
             app_state["rag_engine"] = None
             return
         
-        # 벡터 스토어 초기화
+        # 벡터 스토어 초기화 (교체 가능)
         embeddings = OpenAIEmbeddings(
             openai_api_key=openai_api_key,
             model="text-embedding-ada-002"
@@ -179,7 +181,8 @@ async def initialize_rag_engine():
         else:
             logger.warning("⚠️ No existing vector store found")
         
-        # RAG 엔진 생성
+        # 여기서 본인 엔진으로 교체:
+        # app_state["rag_engine"] = YourRAGEngine(vector_store=vector_store, ...)
         app_state["rag_engine"] = OptimizedRAGEngine(
             vector_store=vector_store,
             model_name="gpt-3.5-turbo",
