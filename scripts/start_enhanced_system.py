@@ -151,16 +151,11 @@ save 60 10000
                 "from enhanced_rag.task_queue import start_worker; start_worker(['high', 'default', 'low'])"
             ]
             
-            # 로그 파일 라인 버퍼 모드
-            log_root = os.getenv("LOG_DIR", os.path.join(self.project_root, "logs"))
-            os.makedirs(os.path.join(log_root, "rq"), exist_ok=True)
-            log_path = os.path.join(log_root, "rq", "worker.log")
-            log_file = open(log_path, "a", buffering=1)
             process = subprocess.Popen(
                 worker_cmd,
                 cwd=self.project_root,
-                stdout=log_file,
-                stderr=log_file
+                stdout=None,
+                stderr=None
             )
             
             self.processes['rq_worker'] = process
@@ -194,17 +189,12 @@ save 60 10000
             env = os.environ.copy()
             env['PYTHONPATH'] = self.project_root
             
-            # 로그 파일 라인 버퍼 모드
-            log_root = os.getenv("LOG_DIR", os.path.join(self.project_root, "logs"))
-            os.makedirs(os.path.join(log_root, "api"), exist_ok=True)
-            app_log_path = os.path.join(log_root, "api", "launcher.log")
-            app_log = open(app_log_path, "a", buffering=1)
             process = subprocess.Popen(
                 server_cmd,
                 cwd=self.project_root,
                 env=env,
-                stdout=app_log,
-                stderr=app_log
+                stdout=None,
+                stderr=None
             )
             
             self.processes['api_server'] = process
@@ -341,44 +331,12 @@ save 60 10000
         
         return health['overall']
 
-    def watchdog(self, interval: int = 10):
-        """단순 워치독: /healthz 실패나 api_server 종료 시 재기동"""
-        while True:
-            try:
-                time.sleep(interval)
-                # 프로세스 생존 확인
-                api_process = self.processes.get('api_server')
-                if api_process and api_process.poll() is not None:
-                    logger.warning("API server process exited; restarting...")
-                    self.start_api_server()
-                    continue
-
-                # 헬스 체크
-                try:
-                    resp = requests.get(f"http://localhost:{self.port}/healthz", timeout=5)
-                    ok = resp.status_code == 200 and resp.json().get('status') != 'fail'
-                except Exception:
-                    ok = False
-                if not ok:
-                    logger.warning("Healthz check failed; restarting API server...")
-                    # 부드럽게 재시작
-                    if api_process and api_process.poll() is None:
-                        api_process.terminate()
-                        try:
-                            api_process.wait(timeout=5)
-                        except subprocess.TimeoutExpired:
-                            api_process.kill()
-                    self.start_api_server()
-            except Exception as e:
-                logger.error(f"Watchdog error: {e}")
-
 
 def main():
     parser = argparse.ArgumentParser(description="Enhanced RAG System Manager")
     parser.add_argument("--check-only", action="store_true", help="Only check system status")
     parser.add_argument("--port", type=int, default=8000, help="API server port")
     parser.add_argument("--stop", action="store_true", help="Stop running system")
-    parser.add_argument("--watchdog", action="store_true", help="Run watchdog loop after start")
     
     args = parser.parse_args()
     
@@ -409,13 +367,7 @@ def main():
         if manager.start_all():
             print("\n🎉 Enhanced RAG System is ready!")
             print("   Press Ctrl+C to stop the system")
-
-            if args.watchdog:
-                # 워치독 병행 실행
-                import threading
-                t = threading.Thread(target=manager.watchdog, args=(10,), daemon=True)
-                t.start()
-
+            
             # 메인 루프 (종료 신호 대기)
             while True:
                 time.sleep(10)

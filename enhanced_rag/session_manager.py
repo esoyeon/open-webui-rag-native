@@ -7,7 +7,6 @@ import json
 import time
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-import hashlib
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -438,24 +437,12 @@ class SessionManager:
                     role_enum = MessageRole(role)
                 except Exception:
                     role_enum = MessageRole.USER
-
-                # 원본 메타/타임스탬프 수집 (가능하면 보존)
-                created_at = msg.get('created_at') or msg.get('timestamp') or time.time()
-                try:
-                    created_at = float(created_at)
-                except Exception:
-                    created_at = time.time()
-                meta: Dict[str, Any] = {}
-                for k in ['id', 'message_id', 'client_id', 'server_seq', 'client_seq', 'created_at', 'anchor', 'topic_shift', 'action_item']:
-                    if k in msg:
-                        meta[k] = msg[k]
-
                 incoming_messages.append(
                     ChatMessage(
                         role=role_enum,
                         content=content,
-                        timestamp=created_at,
-                        metadata=meta
+                        timestamp=time.time(),
+                        metadata={}
                     )
                 )
 
@@ -465,52 +452,18 @@ class SessionManager:
                 combined: List[ChatMessage] = list(existing)
 
                 def _dup_key(m: ChatMessage) -> str:
-                    # 다중키 중복 제거: (id/client_id) + created_at + sha256(content)
-                    mid = None
-                    if m.metadata:
-                        mid = m.metadata.get('id') or m.metadata.get('message_id') or m.metadata.get('client_id')
-                    created = m.metadata.get('created_at') if (m.metadata and 'created_at' in m.metadata) else m.timestamp
-                    h = hashlib.sha256((m.content or '').encode()).hexdigest()[:16]
-                    return f"{mid}|{created}|{h}"
+                    # 내용과 롤 기준 간단 중복 키 (타임스탬프는 제외)
+                    return f"{m.role.value}|{m.content}"
 
                 seen = {_dup_key(m) for m in combined}
-                dedup_skipped = 0
                 for m in incoming_messages:
                     key = _dup_key(m)
                     if key not in seen:
                         combined.append(m)
                         seen.add(key)
-                    else:
-                        dedup_skipped += 1
                 chat_messages = combined
             else:
                 chat_messages = incoming_messages
-
-            # 정렬: server_seq > created_at > client_seq (오름차순)
-            try:
-                def _sort_key(m: ChatMessage):
-                    meta = m.metadata or {}
-                    server_seq = meta.get('server_seq')
-                    client_seq = meta.get('client_seq')
-                    try:
-                        server_seq = int(server_seq) if server_seq is not None else 10**12
-                    except Exception:
-                        server_seq = 10**12
-                    try:
-                        client_seq = int(client_seq) if client_seq is not None else 10**12
-                    except Exception:
-                        client_seq = 10**12
-                    created = None
-                    if 'created_at' in meta:
-                        try:
-                            created = float(meta.get('created_at'))
-                        except Exception:
-                            created = None
-                    created = created if created is not None else float(m.timestamp or time.time())
-                    return (server_seq, created, client_seq)
-                chat_messages.sort(key=_sort_key)
-            except Exception:
-                pass
 
             # 시스템 메시지 보존 + LRU 트림 적용
             if len(chat_messages) > self.max_messages_per_session:
@@ -537,12 +490,6 @@ class SessionManager:
             if not ok or not ok2:
                 self._ephemeral_store[session_id] = chat_messages
                 self._ephemeral_info[session_id] = info
-            # 메트릭 로깅
-            try:
-                if merge:
-                    logger.info(f"metrics.merge_dedup_count={dedup_skipped}")
-            except Exception:
-                pass
             return True
         except Exception as e:
             logger.error(f"Failed to sync messages for session {session_id}: {e}")

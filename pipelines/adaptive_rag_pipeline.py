@@ -35,7 +35,8 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from adaptive_rag import AdaptiveRAGGraph, FAISSVectorStore
+from adaptive_rag import FAISSVectorStore
+from adaptive_rag.graph import AdaptiveRAGGraph
 from langchain_openai import OpenAIEmbeddings
 from document_processing.pdf import PDFRetrievalChain
 

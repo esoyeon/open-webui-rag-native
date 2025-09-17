@@ -249,18 +249,3 @@ yarn-error.log*
 *.log
 
 # End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks,python
-# Additional ignores for local logs and artifacts
-enhanced_rag_rq_worker.log
-enhanced_api_access.log
-enhanced_api_app.log
-
-# Open WebUI build output
-open-webui/build/
-open-webui/.svelte-kit/
-
-# Local caches
-**/.cache/
-**/cache/
-# Centralized logs directory
-logs/
-logs/**
