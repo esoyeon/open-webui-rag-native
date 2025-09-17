@@ -1,5 +1,7 @@
 # 기술 가이드 (Technical Guide)
 
+> 이 문서는 통합 가이드로 대체되었습니다. 최신 문서는 `GUIDE.md`를 참고하세요.
+
 이 문서는 Open WebUI와 자체 구현한 Adaptive RAG 시스템의 기술적 연동 방법과 커스터마이징을 상세히 설명합니다.
 
 > **📖 기본 설정은 [README.md](README.md)를 참조하세요.**
