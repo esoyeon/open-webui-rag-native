@@ -517,10 +517,40 @@ class OptimizedRAGEngine:
                 search_type, expanded_query = self._llm_route_and_rewrite(question, session_id, initial)
             logger.info(f"🔍 Search type: {search_type}; expanded={expanded_query != question}")
             
-            # 3. 대화 컨텍스트 조회 (최근성 제한 포함)
-            conversation_context, conv_tokens = self.session_manager.get_conversation_context(
-                session_id, max_tokens=1000, last_messages_limit=12
-            )
+            # 3. 대화 컨텍스트 조회
+            # 요약/정리/번역 등 컨텍스트성 작업은 초기 대화까지 포함하도록 더 길게 가져와 누락 방지
+            if is_contextual:
+                # 동적 버짓팅: 모델 컨텍스트 여유(예: 2k 토큰) 내에서
+                # 1) 최신 메시지, 2) 앵커(대화 시작/주제전환/액션아이템) 우선 포함
+                # 간단 구현: 더 많은 last_messages_limit를 사용하고, 앵커는 별도로 앞쪽에 붙임
+                anchor_msgs = []
+                try:
+                    full = self.session_manager.get_messages(session_id, include_system=True) or []
+                    for m in full:
+                        anchor = (m.metadata or {}).get('anchor') or (m.metadata or {}).get('topic_shift') or (m.metadata or {}).get('action_item')
+                        if anchor:
+                            anchor_msgs.append(m)
+                except Exception:
+                    pass
+
+                conversation_context, conv_tokens = self.session_manager.get_conversation_context(
+                    session_id, max_tokens=1800, last_messages_limit=60
+                )
+                # 앵커를 앞쪽에 prepend (중복을 피하기 위해 간단히 내용 기준)
+                try:
+                    anchor_texts = []
+                    for am in anchor_msgs[:5]:
+                        t = f"{am.role.value}: {am.content}"
+                        if t not in conversation_context:
+                            anchor_texts.append(t)
+                    if anchor_texts:
+                        conversation_context = "\n\n".join(anchor_texts) + "\n\n" + conversation_context
+                except Exception:
+                    pass
+            else:
+                conversation_context, conv_tokens = self.session_manager.get_conversation_context(
+                    session_id, max_tokens=1000, last_messages_limit=12
+                )
             
             # 4. 검색 수행 (컨텍스트 작업이면 검색 생략하고 대화 컨텍스트만 사용)
             if is_contextual:

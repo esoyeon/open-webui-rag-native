@@ -22,6 +22,7 @@ import os
 import sys
 import asyncio
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import time
 from typing import List, Dict, Any, Optional
 from contextlib import asynccontextmanager
@@ -50,11 +51,69 @@ from enhanced_rag import (
 from adaptive_rag import FAISSVectorStore
 from langchain_openai import OpenAIEmbeddings
 
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+def _ensure_log_dir(path: str):
+    try:
+        os.makedirs(path, exist_ok=True)
+    except Exception:
+        pass
+
+
+def build_uvicorn_log_config() -> Dict[str, Any]:
+    """파일 회전이 포함된 Uvicorn 로깅 설정 생성"""
+    log_dir = os.getenv("LOG_DIR", os.path.join(project_root, "logs"))
+    api_log_dir = os.path.join(log_dir, "api")
+    _ensure_log_dir(api_log_dir)
+
+    access_file = os.path.join(api_log_dir, "access.log")
+    app_file = os.path.join(api_log_dir, "app.log")
+
+    fmt = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {"format": fmt},
+            "access": {"format": "%(asctime)s - %(levelname)s - %(client_addr)s - \"%(request_line)s\" %(status_code)s"},
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+                "level": "INFO",
+            },
+            "app_file": {
+                "class": "logging.handlers.TimedRotatingFileHandler",
+                "formatter": "default",
+                "filename": app_file,
+                "when": os.getenv("LOG_ROTATION", "D"),
+                "interval": 1,
+                "backupCount": int(os.getenv("LOG_BACKUPS", "7")),
+                "encoding": "utf-8",
+                "level": "INFO",
+            },
+            "access_file": {
+                "class": "logging.handlers.TimedRotatingFileHandler",
+                "formatter": "access",
+                "filename": access_file,
+                "when": os.getenv("LOG_ROTATION", "D"),
+                "interval": 1,
+                "backupCount": int(os.getenv("LOG_BACKUPS", "7")),
+                "encoding": "utf-8",
+                "level": "INFO",
+            },
+        },
+        "loggers": {
+            "uvicorn": {"handlers": ["console", "app_file"], "level": "INFO", "propagate": False},
+            "uvicorn.error": {"handlers": ["console", "app_file"], "level": "INFO", "propagate": False},
+            "uvicorn.access": {"handlers": ["access_file"], "level": "INFO", "propagate": False},
+        },
+        "root": {"handlers": ["console", "app_file"], "level": "INFO"},
+    }
+
+
+# 애플리케이션 로거(비 Uvicorn) 기본 설정
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -308,6 +367,31 @@ async def health_check():
     )
 
 
+@app.get("/healthz")
+async def healthz():
+    """K8s/워치독 친화적 경량 헬스체크"""
+    components: Dict[str, str] = {}
+    # Redis/cache
+    cache = services_cache = None
+    try:
+        cache = app_state.get("cache_manager")
+        services_cache = cache.get_health() if cache else {"healthy": False}
+    except Exception:
+        services_cache = {"healthy": False}
+    components["redis"] = "ok" if services_cache.get("healthy") else ("degraded" if services_cache.get("error_count", 0) < 5 else "fail")
+
+    # Task queue
+    tq = app_state.get("task_queue")
+    components["rq"] = "ok" if (tq and getattr(tq, "is_available", False)) else "degraded"
+
+    # API / RAG
+    rag = app_state.get("rag_engine")
+    components["api"] = "ok" if rag else "fail"
+
+    status = "ok" if all(v == "ok" for v in components.values()) else ("warn" if any(v == "ok" for v in components.values()) else "fail")
+    return {"status": status, "components": components}
+
+
 @app.get("/v1/models")
 @app.get("/api/models")
 async def get_models():
@@ -376,10 +460,12 @@ async def chat_completions(request: ChatRequest, http_request: Request):
         
         # 세션 동기화: 클라이언트가 보낸 전체 messages를 세션 저장소에 반영
         try:
+            # 병합 모드로 동기화해 초기 메시지를 보존하고 중복은 제거
             app_state["session_manager"].sync_messages(
                 session_id=session_id,
                 messages=[m.dict() for m in request.messages],
                 include_system=True,
+                merge=True,
             )
         except Exception:
             pass
@@ -528,11 +614,17 @@ if __name__ == "__main__":
     print("  • Cache hit rate: 30-50%")
     print("  • Concurrent requests: Unlimited")
     
+    reload_flag = os.getenv("ENHANCED_API_RELOAD", "0").lower() in ("1", "true", "yes", "on")
+    keepalive = int(os.getenv("UVICORN_TIMEOUT_KEEP_ALIVE", "5"))
+    graceful_timeout = int(os.getenv("UVICORN_GRACEFUL_TIMEOUT", "20"))
     uvicorn.run(
         "enhanced_api_server:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        reload=reload_flag,
         log_level="info",
-        access_log=True
+        access_log=True,
+        log_config=build_uvicorn_log_config(),
+        timeout_keep_alive=keepalive,
+        timeout_graceful_shutdown=graceful_timeout
     )

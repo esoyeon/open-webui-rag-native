@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+⚠️ DEPRECATED: 이 서버는 유지보수 종료되었습니다. 운영 환경에서는 `enhanced_api_server.py`를 사용하세요.
+
 🤖 한국어 지원 Adaptive RAG API 서버
 
 OpenAI 호환 API 형식으로 LangGraph 기반 Adaptive RAG 시스템을 제공합니다.
@@ -155,7 +157,8 @@ async def add_documents(documents: List[str]):
 
 
 if __name__ == "__main__":
-    print("🚀 Adaptive RAG API Server Starting...")
+    print("⚠️ [DEPRECATED] web_api_server.py는 더 이상 권장되지 않습니다. enhanced_api_server.py를 사용하세요.")
+    print("🚀 Adaptive RAG API Server Starting (legacy)...")
     print("📊 Pipeline Status:", pipeline.get_status())
     print("🌐 Server URL: http://localhost:8000")
     print("📖 API Docs: http://localhost:8000/docs")
