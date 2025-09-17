@@ -36,6 +36,7 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 from adaptive_rag import FAISSVectorStore
+# 학생 확장 포인트: 여러분의 LangGraph 클래스를 import 하여 교체할 수 있습니다.
 from adaptive_rag.graph import AdaptiveRAGGraph
 from langchain_openai import OpenAIEmbeddings
 from document_processing.pdf import PDFRetrievalChain
@@ -70,7 +71,10 @@ class Pipe:
         self._initialize_pipeline()
 
     def _initialize_pipeline(self):
-        """파이프라인 초기화"""
+        """파이프라인 초기화
+        - OpenAI 임베딩 → FAISS → (여러분의) 그래프 구성
+        - 아래 AdaptiveRAGGraph 자리에 본인 그래프 클래스를 넣으세요.
+        """
         try:
             if not self.openai_api_key:
                 logger.warning(
@@ -88,7 +92,7 @@ class Pipe:
                 embedding_function=embeddings, dimension=1536
             )
 
-            # 기존 벡터 스토어가 있다면 로드
+            # 기존 벡터 스토어 로드 (있으면)
             vector_store_path = os.path.join(project_root, "data", "vector_store")
             if os.path.exists(vector_store_path):
                 try:
@@ -97,7 +101,7 @@ class Pipe:
                 except Exception as e:
                     logger.warning(f"Failed to load existing vector store: {e}")
 
-            # Adaptive RAG 그래프 생성
+            # 여기서 그래프 교체 가능
             self.rag_graph = AdaptiveRAGGraph(
                 vector_store=self.vector_store, model_name="gpt-3.5-turbo"
             )

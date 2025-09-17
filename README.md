@@ -587,3 +587,12 @@ curl http://localhost:8000/health
 ## 📄 라이선스
 
 Open WebUI는 원본 라이선스를 따릅니다.
+
+## Unified Guide
+
+- Start here: `GUIDE.md` combines the Student, Integration, and Technical guides into one document.
+
+## Student Quickstart
+
+- If you are a student integrating your own LangGraph-based RAG with Open WebUI, start here:
+  - See `STUDENT_GUIDE.md` for step-by-step tracks (Pipeline plugin vs Enhanced API).
